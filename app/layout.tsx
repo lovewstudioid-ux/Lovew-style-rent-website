@@ -25,7 +25,6 @@ export const metadata: Metadata = {
   description:
     "Rent the look. Own the moment. LOVEW Style is a curated dress & fashion rental marketplace — discover, reserve, and rent looks from independent providers across Jakarta, Surabaya, Bali, and Bandung, with a refundable deposit held safely.",
   applicationName: brand.product,
-  other: { "x-lovew-build": "autodeploy-verify-a91c" },
   openGraph: {
     title: `${brand.product} — ${brand.taglines.style}`,
     description: "Rent the look. Own the moment.",
