@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * LOVEW house palette — single source of truth (mirrors lib/brand.ts).
+ *
+ * The brand book defines: Wine (the hero), Chiffon/Pearl/Bone (warm neutrals),
+ * Eucalyptus + Olive Shadow (earth accents), Ink (body text). The 60/30/10 rule:
+ * 60% warm neutrals, 30% Wine, 10% olive accents.
+ *
+ * Tailwind tokens in tailwind.config.ts reference these vars — never hardcode hex
+ * in components. Prefer the true names (wine, chiffon, ink…) in new code. The
+ * legacy aliases (rose-gold, charcoal, cream, soft-blush, sage) are repointed to
+ * the brand palette so the existing app rebrands with zero churn.
+ */
+:root {
+  /* Brand palette */
+  --wine: #4c0b19; /* the hero — headlines, CTAs, hero frames */
+  --wine-deep: #3a0812; /* deepest ground */
+  --plum: #6b1d2b; /* secondary wine — hovers, rules */
+  --chiffon: #f6f4e9; /* primary page background */
+  --pearl: #e5ddcf; /* card / section background */
+  --bone: #ede6d6; /* warm divider / muted surface */
+  --eucalyptus: #938a65; /* olive accent — decorative */
+  --olive-shadow: #4d3b2e; /* mushroom brown — secondary buttons, depth */
+  --ink: #231a16; /* body text */
+
+  /* Legacy aliases → repointed to the brand palette (do not reintroduce) */
+  --rose-gold: var(--wine);
+  --charcoal: var(--ink);
+  --cream: var(--chiffon);
+  --soft-blush: var(--bone);
+  --sage: var(--eucalyptus);
+
+  --radius: 0.375rem;
+}
+
+@layer base {
+  body {
+    @apply bg-chiffon text-ink font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display;
+  }
+
+  a {
+    @apply transition-colors;
+  }
+
+  ::selection {
+    background-color: var(--wine);
+    color: var(--chiffon);
+  }
+}
+
+@layer components {
+  /* Uppercase tracked label — the brand "eyebrow" (Helvetica Now Medium 0.25–0.35em). */
+  .eyebrow {
+    @apply text-[0.7rem] font-medium uppercase tracking-[0.22em] text-wine;
+  }
+
+  /* Hairline rule beneath wordmarks / section headers, per the brand book. */
+  .hairline {
+    @apply h-px w-10 bg-current opacity-40;
+  }
+}
