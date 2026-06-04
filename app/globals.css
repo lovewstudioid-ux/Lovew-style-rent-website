@@ -19,7 +19,7 @@
   --wine: #4c0b19; /* the hero — headlines, CTAs, hero frames */
   --wine-deep: #3a0812; /* deepest ground */
   --plum: #6b1d2b; /* secondary wine — hovers, rules */
-  --chiffon: #f6f4e9; /* primary page background */
+  --chiffon: #ffffff; /* primary page background — pure white (minimalist direction) */
   --pearl: #e5ddcf; /* card / section background */
   --bone: #ede6d6; /* warm divider / muted surface */
   --eucalyptus: #938a65; /* olive accent — decorative */
@@ -59,9 +59,12 @@
 }
 
 @layer components {
-  /* Uppercase tracked label — the brand "eyebrow" (Helvetica Now Medium 0.25–0.35em). */
+  /* Uppercase tracked label — the brand "eyebrow" (Helvetica Now Medium 0.25–0.35em).
+     Kept quiet/monochrome for the minimalist direction; Wine is reserved for the
+     logo and the occasional accent. */
   .eyebrow {
-    @apply text-[0.7rem] font-medium uppercase tracking-[0.22em] text-wine;
+    @apply text-[0.7rem] font-medium uppercase tracking-[0.28em] text-ink;
+    opacity: 0.5;
   }
 
   /* Hairline rule beneath wordmarks / section headers, per the brand book. */

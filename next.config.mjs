@@ -5,6 +5,8 @@ const nextConfig = {
     remotePatterns: [
       // Cloudinary delivery — narrow to your cloud name before launch.
       { protocol: "https", hostname: "res.cloudinary.com" },
+      // Editorial placeholder photography (swap for brand shoots before launch).
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
   // The dormant marketplace/admin pages (inactive until Supabase is wired up)

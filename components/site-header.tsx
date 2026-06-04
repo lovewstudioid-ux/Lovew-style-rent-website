@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getDictionary, type Locale } from "@/lib/i18n";
-import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { UserMenu } from "@/components/user-menu";
 import { Wordmark } from "@/components/wordmark";
@@ -90,12 +89,18 @@ export async function SiteHeader({ locale = "en" as Locale }: { locale?: Locale 
             />
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-                <Link href="/sign-in">{t.signIn}</Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href="/browse">{t.browse}</Link>
-              </Button>
+              <Link
+                href="/sign-in"
+                className="hidden text-xs uppercase tracking-[0.18em] text-ink/70 transition-colors hover:text-wine sm:inline-block"
+              >
+                {t.signIn}
+              </Link>
+              <Link
+                href="/browse"
+                className="border-b border-ink/30 pb-1 text-xs uppercase tracking-[0.18em] text-ink transition-colors hover:border-wine hover:text-wine"
+              >
+                {t.browse}
+              </Link>
             </>
           )}
         </div>

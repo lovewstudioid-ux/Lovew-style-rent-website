@@ -27,7 +27,7 @@ export function SiteFooter({ locale = "en" as Locale }: { locale?: Locale }) {
   ];
 
   return (
-    <footer className="border-t border-ink/10 bg-bone">
+    <footer className="border-t border-ink/10 bg-white">
       <div className="mx-auto grid max-w-editorial gap-12 px-6 py-16 md:grid-cols-[1.4fr_1fr_1fr]">
         <div className="max-w-sm space-y-5">
           {/* Footer logo links to the parent brand site. */}
