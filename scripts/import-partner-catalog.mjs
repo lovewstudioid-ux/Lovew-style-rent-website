@@ -53,9 +53,10 @@ const opt = (name, def = null) => {
 const COMMIT = args.includes("--commit");
 const partnerPath = opt("partner");
 const catalogPath = opt("catalog");
+const variantsPath = opt("variants"); // sizes & measurements CSV (optional but recommended)
 
 if (!partnerPath || !catalogPath) {
-  console.error("Usage: node scripts/import-partner-catalog.mjs --partner partner.json --catalog catalog.csv [--commit]");
+  console.error("Usage: node scripts/import-partner-catalog.mjs --partner partner.json --catalog catalog.csv [--variants sizes.csv] [--commit]");
   process.exit(1);
 }
 
@@ -164,17 +165,52 @@ const dresses = rows
   .map((cells) => rowToDress(cells, "<partner_id>"))
   .filter((d) => d.record.title && !/example/i.test(d.record.description || "")); // skip the sample row
 
+// ---------- variants (Sizes & Measurements) ----------
+// One row per size (per color only when it differs). Linked to a dress by Item ID.
+const VCOLS = ["item_id", "size", "color", "bust", "waist", "hip", "length", "shoulder", "quantity", "price_override", "notes"];
+const variantsByItem = {};
+if (variantsPath) {
+  const vrows = parseCSV(readFileSync(variantsPath, "utf8"));
+  vrows.shift(); // header
+  for (const cells of vrows) {
+    const v = Object.fromEntries(VCOLS.map((k, i) => [k, (cells[i] ?? "").trim()]));
+    if (!v.item_id || !v.size) continue;
+    if (/example/i.test(v.notes || "")) continue;
+    (variantsByItem[v.item_id] ||= []).push({
+      size_label: v.size,
+      color: v.color ? v.color.toLowerCase() : null,
+      bust_cm: toInt(v.bust),
+      waist_cm: toInt(v.waist),
+      hip_cm: toInt(v.hip),
+      length_cm: toInt(v.length),
+      shoulder_cm: toInt(v.shoulder),
+      quantity: toInt(v.quantity) ?? 1,
+      price_override_idr: toInt(v.price_override),
+      status: "active",
+    });
+  }
+}
+for (const d of dresses) d._variants = variantsByItem[d._item_id] || [];
+
 // ---------- report ----------
 console.log(`\nPartner:  ${partnerRecord.brand_name}  (slug: ${partnerRecord.slug}, city: ${partnerRecord.city})`);
 console.log(`Catalog:  ${dresses.length} dresses parsed from ${catalogPath}`);
 console.log(`Header columns detected: ${header.length}`);
+let missingVariants = 0;
 for (const d of dresses) {
+  const sizes = d._variants.map((v) => v.size_label + (v.color ? `(${v.color})` : "")).join("/");
+  if (!d._variants.length) missingVariants++;
   console.log(
-    `  • ${d._item_id?.padEnd(6)} ${d.record.title}  [${d.record.category}] ` +
+    `  • ${(d._item_id || "").padEnd(6)} ${d.record.title}  [${d.record.category}] ` +
     `Rp${(d.record.daily_price_idr ?? 0).toLocaleString("id-ID")}/day  ` +
     `dep Rp${(d.record.deposit_idr ?? 0).toLocaleString("id-ID")}  ` +
-    `sizes:${d._sizes.join("/") || "?"}  photos:${d._photos.length}`
+    `variants:${d._variants.length}${sizes ? " (" + sizes + ")" : ""}  photos:${d._photos.length}`
   );
+}
+if (!variantsPath) {
+  console.log("\n⚠ No --variants file given. Sizes/measurements drive the 'fits my size' filter — pass the Sizes & Measurements CSV too.");
+} else if (missingVariants) {
+  console.log(`\n⚠ ${missingVariants} dress(es) have NO size rows in the variants file — they won't be bookable until sizes are added.`);
 }
 
 if (!COMMIT) {
@@ -210,11 +246,23 @@ const { data: inserted, error: de } = await db
 if (de) { console.error("Dress upsert failed:", de.message); process.exit(1); }
 console.log(`Imported ${inserted.length} dresses (status=draft).`);
 
-// TODO (confirm variants table schema, then enable):
-//   For each dress, create one variant per size in d._sizes:
-//     await db.from("dress_variants").insert(
-//       d._sizes.map((size) => ({ dress_id: id, size_label: size, quantity: 1, status: "active" }))
-//     );
-// TODO: after uploading d._photos to Cloudinary, set dresses.cover_image_url and publish (status='active').
+// size variants — one row per size (per color when it differs)
+// NOTE: confirm the dress_variants column names against the live schema before
+// first real import; adjust the keys below to match.
+const slugToId = Object.fromEntries(inserted.map((r) => [r.slug, r.id]));
+const variantPayload = [];
+for (const d of dresses) {
+  const dressId = slugToId[d.record.slug];
+  if (!dressId) continue;
+  for (const v of d._variants) variantPayload.push({ dress_id: dressId, ...v });
+}
+if (variantPayload.length) {
+  const { error: ve } = await db.from("dress_variants").insert(variantPayload);
+  if (ve) console.error("⚠ Variant insert failed (check dress_variants schema):", ve.message);
+  else console.log(`Imported ${variantPayload.length} size variants.`);
+} else {
+  console.log("No size variants to import (pass --variants to add them).");
+}
 
+// TODO: after uploading d._photos to Cloudinary, set dresses.cover_image_url and publish (status='active').
 console.log("\nNext: upload photos to Cloudinary, set cover_image_url, review, then flip status to 'active'.\n");
