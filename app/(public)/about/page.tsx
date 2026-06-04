@@ -34,12 +34,7 @@ export default function AboutPage() {
             <p>
               {brand.product} adalah produk pertama dari {brand.parent}. Ke
               depan kami akan menghadirkan {""}
-              <a
-                href={brand.urls.spaces}
-                className="text-rose-gold hover:underline"
-              >
-                LOVEW Spaces
-              </a>{" "}
+              <span className="text-wine">LOVEW Spaces</span>{" "}
               — platform booking studio dan ruang acara — sebagai produk
               berikutnya.
             </p>

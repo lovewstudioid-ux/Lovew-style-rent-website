@@ -20,8 +20,7 @@ export function SiteFooter({ locale = "en" as Locale }: { locale?: Locale }) {
     {
       heading: "LOVEW Studio",
       links: [
-        { href: brand.urls.parent, label: "lovewstudio.com", external: true },
-        { href: brand.urls.spaces, label: "LOVEW Spaces", external: true },
+        { href: brand.urls.parent, label: "lovew.studio", external: true },
         { href: brand.social.instagram, label: "Instagram", external: true },
       ],
     },

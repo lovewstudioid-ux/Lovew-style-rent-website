@@ -21,10 +21,10 @@ export const brand = {
   },
 
   urls: {
-    product: "https://style.lovewstudio.com",
-    parent: "https://lovewstudio.com",
-    /** Future sibling product (LOVEW Spaces). */
-    spaces: "https://studio.lovewstudio.com",
+    /** This site's live domain. */
+    product: "https://lovew.studio",
+    /** Parent brand home (same domain for now). */
+    parent: "https://lovew.studio",
   },
 
   /**
