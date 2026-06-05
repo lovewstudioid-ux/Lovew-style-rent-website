@@ -18,18 +18,16 @@ const sans = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL(brand.urls.product),
-  title: {
-    default: `${brand.product} — ${brand.taglines.style}`,
-    template: `%s · ${brand.product}`,
-  },
+  title: "LOVEW Studio — Style & Spaces",
   description:
-    "Rent the look. Own the moment. LOVEW Style is a curated dress & fashion rental marketplace — discover, reserve, and rent looks from independent providers across Jakarta, Surabaya, Bali, and Bandung, with a refundable deposit held safely.",
-  applicationName: brand.product,
+    "LOVEW Studio — a creative house. Dress rental & shop, studios & venues, personal styling, photo & video, and digital invitations. Jakarta & Surabaya.",
+  applicationName: "LOVEW Studio",
   openGraph: {
-    title: `${brand.product} — ${brand.taglines.style}`,
-    description: "Rent the look. Own the moment.",
+    title: "LOVEW Studio — Style & Spaces",
+    description:
+      "A creative house — wardrobe, studios, styling, production, and paper.",
     url: brand.urls.product,
-    siteName: brand.product,
+    siteName: "LOVEW Studio",
     locale: "en_US",
     type: "website",
   },
