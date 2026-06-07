@@ -54,7 +54,7 @@ export function StudioFooter() {
         <div className="max-w-sm space-y-4">
           <StudioWordmark className="items-start text-wine" />
           <p className="text-sm leading-relaxed text-ink/65">
-            A creative house — wardrobe, studios, styling, production, and paper.
+            A creative house — wardrobe, studios, styling, production, and digitals.
           </p>
         </div>
         <div className="space-y-3">
@@ -73,7 +73,7 @@ export function StudioFooter() {
           <Label>LOVEW Studio</Label>
           <ul className="space-y-2.5 text-sm">
             <li><a href="https://instagram.com/lovewstudio" target="_blank" rel="noopener noreferrer" className="text-ink/70 hover:text-wine">Instagram</a></li>
-            <li><a href="https://wa.me/" target="_blank" rel="noopener noreferrer" className="text-ink/70 hover:text-wine">WhatsApp</a></li>
+            <li><a href="https://wa.me/6281353752257" target="_blank" rel="noopener noreferrer" className="text-ink/70 hover:text-wine">WhatsApp</a></li>
             <li><a href="mailto:lovewstudioid@gmail.com" className="text-ink/70 hover:text-wine">lovewstudioid@gmail.com</a></li>
           </ul>
         </div>

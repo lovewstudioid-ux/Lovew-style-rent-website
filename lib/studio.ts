@@ -42,7 +42,7 @@ export interface StudioService {
 /** The six services — drives the umbrella nav, the services grid, and the footer. */
 export const SERVICES: StudioService[] = [
   { key: "discover", name: "Style ID", tagline: "Discover your colours & fit", href: "/discover", photo: PHOTO.beauty2 },
-  { key: "style", name: "LOVEW Style", tagline: "Rent & shop the look", href: "/style", photo: PHOTO.maroonGown },
+  { key: "fashion", name: "LOVEW Fashion", tagline: "Rent & shop the look", href: "/fashion", photo: PHOTO.maroonGown },
   { key: "spaces", name: "LOVEW Spaces", tagline: "Studios & venues to book", href: "/spaces", photo: PHOTO.spaceStudio },
   { key: "styling", name: "LOVEW Styling", tagline: "Personal styling", href: "/styling", photo: PHOTO.rack },
   { key: "production", name: "LOVEW Production", tagline: "Photo & video", href: "/production", photo: PHOTO.shoot2 },

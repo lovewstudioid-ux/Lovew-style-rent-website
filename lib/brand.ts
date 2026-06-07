@@ -50,7 +50,7 @@ export const brand = {
 
   social: {
     instagram: "https://instagram.com/lovewstudio",
-    whatsapp: "https://wa.me/",
+    whatsapp: "https://wa.me/6281353752257",
   },
 } as const;
 

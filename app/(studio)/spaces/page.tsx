@@ -8,12 +8,12 @@ const LOCATIONS = ["All Indonesia", "Jabodetabek", "Surabaya"];
 const TYPES = ["All", "Indoor", "Outdoor"];
 
 const SPACES = [
-  { name: "Atrium Loft", area: "Jakarta Selatan", type: "Indoor", price: "from Rp 350K / hr", wa: "6281234567890", photo: PHOTO.spaceStudio },
-  { name: "The White Room", area: "Tangerang", type: "Indoor", price: "from Rp 280K / hr", wa: "6281234567890", photo: PHOTO.spaceRoom },
-  { name: "Garden Pavilion", area: "Bogor", type: "Outdoor", price: "from Rp 500K / hr", wa: "6281234567890", photo: PHOTO.spaceWarm },
-  { name: "Studio Nordlys", area: "Surabaya", type: "Indoor", price: "from Rp 300K / hr", wa: "6281234567890", photo: PHOTO.spaceLounge },
-  { name: "Rooftop Terrace", area: "Jakarta Pusat", type: "Outdoor", price: "from Rp 650K / hr", wa: "6281234567890", photo: PHOTO.blazer },
-  { name: "Concrete Gallery", area: "Bekasi", type: "Indoor", price: "from Rp 320K / hr", wa: "6281234567890", photo: PHOTO.spaceStudio },
+  { name: "Atrium Loft", area: "Jakarta Selatan", type: "Indoor", price: "from Rp 350K / hr", wa: "6281353752257", photo: PHOTO.spaceStudio },
+  { name: "The White Room", area: "Tangerang", type: "Indoor", price: "from Rp 280K / hr", wa: "6281353752257", photo: PHOTO.spaceRoom },
+  { name: "Garden Pavilion", area: "Bogor", type: "Outdoor", price: "from Rp 500K / hr", wa: "6281353752257", photo: PHOTO.spaceWarm },
+  { name: "Studio Nordlys", area: "Surabaya", type: "Indoor", price: "from Rp 300K / hr", wa: "6281353752257", photo: PHOTO.spaceLounge },
+  { name: "Rooftop Terrace", area: "Jakarta Pusat", type: "Outdoor", price: "from Rp 650K / hr", wa: "6281353752257", photo: PHOTO.blazer },
+  { name: "Concrete Gallery", area: "Bekasi", type: "Indoor", price: "from Rp 320K / hr", wa: "6281353752257", photo: PHOTO.spaceStudio },
 ];
 
 export default function SpacesPage() {

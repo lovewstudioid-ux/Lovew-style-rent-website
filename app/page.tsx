@@ -18,7 +18,8 @@ export default function HomePage() {
             <p className="mx-auto mt-7 max-w-xl text-base font-light leading-relaxed text-chiffon/80 md:text-lg">
               LOVEW Studio is one home for the things that make an occasion —
               wardrobe to rent and shop, studios and venues to book, personal
-              styling, photo &amp; video, and the paper that invites everyone in.
+              styling, photo &amp; video, and the digital products that bring
+              everyone in.
             </p>
           </div>
         </section>

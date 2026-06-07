@@ -3,7 +3,7 @@ import Image from "next/image";
 import { PHOTO, img } from "@/lib/studio";
 import { Label } from "@/components/studio-ui";
 
-export const metadata = { title: "LOVEW Style — Rent & shop the look · LOVEW Studio" };
+export const metadata = { title: "LOVEW Fashion — Rent & shop the look · LOVEW Studio" };
 
 const FILTERS = [
   { name: "Category", value: "All" },
@@ -29,7 +29,7 @@ export default function StylePage() {
       <section className="border-b border-ink/10">
         <div className="mx-auto grid max-w-editorial md:grid-cols-2 md:items-stretch">
           <div className="flex flex-col justify-center px-6 py-20 md:py-32 md:pr-16">
-            <Label>LOVEW Style</Label>
+            <Label>LOVEW Fashion</Label>
             <h1 className="mt-8 font-display text-[3rem] font-normal leading-[1.04] tracking-[-0.01em] text-ink md:text-[4.4rem]">
               Rent the look.
               <br />
@@ -42,7 +42,7 @@ export default function StylePage() {
             </p>
           </div>
           <div className="relative min-h-[58vh] md:min-h-[82vh]">
-            <Image src={img(PHOTO.maroonGown, 1400)} alt="LOVEW Style" fill priority sizes="(min-width:768px) 50vw, 100vw" className="object-cover" />
+            <Image src={img(PHOTO.maroonGown, 1400)} alt="LOVEW Fashion" fill priority sizes="(min-width:768px) 50vw, 100vw" className="object-cover" />
           </div>
         </div>
       </section>

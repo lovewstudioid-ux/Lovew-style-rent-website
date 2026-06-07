@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "LOVEW Studio — Style & Spaces",
     description:
-      "A creative house — wardrobe, studios, styling, production, and paper.",
+      "A creative house — wardrobe, studios, styling, production, and digitals.",
     url: brand.urls.product,
     siteName: "LOVEW Studio",
     locale: "en_US",
