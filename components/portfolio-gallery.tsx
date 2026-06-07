@@ -13,7 +13,7 @@ export interface Project {
 export interface PortfolioSection {
   key: string;
   label: string;
-  blurb: string;
+  blurb?: string;
   services?: string[];
   occasions?: string[];
   projects: Project[];
@@ -56,7 +56,9 @@ export function PortfolioGallery({
                 0{i + 1} · {section.projects.length} projects
               </p>
               <h3 className="mt-3 font-display text-4xl font-normal text-ink md:text-5xl">{section.label}</h3>
-              <p className="mx-auto mt-5 max-w-md text-sm font-light leading-relaxed text-ink/60">{section.blurb}</p>
+              {section.blurb && (
+                <p className="mx-auto mt-5 max-w-md text-sm font-light leading-relaxed text-ink/60">{section.blurb}</p>
+              )}
               {section.services && (
                 <p className="mx-auto mt-5 max-w-lg text-[0.8rem] leading-relaxed text-ink/55">
                   {section.services.join("  ·  ")}
@@ -91,7 +93,7 @@ export function PortfolioGallery({
                         {...(clickable ? { type: "button" as const, onClick: () => setOpen(p) } : {})}
                         className={`group text-left ${clickable ? "" : "cursor-default"}`}
                       >
-                        <div className="relative aspect-[3/4] overflow-hidden bg-[#f1eee9]">
+                        <div className="relative aspect-[16/9] overflow-hidden bg-[#f1eee9]">
                           {p.cover ? (
                             <Image src={p.cover} alt={p.name} fill sizes="(min-width:768px) 28vw, 45vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
                           ) : (

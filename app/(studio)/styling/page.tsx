@@ -11,8 +11,6 @@ const SECTIONS: PortfolioSection[] = [
   {
     key: "commercial",
     label: "Brand / Commercial",
-    blurb: "For brands and businesses — catalog, campaign, and lookbook. Producer, director, and brand stylist, end to end.",
-    services: ["Photoshoot & videoshoot", "Creative direction & styling boards", "Wardrobe & product styling", "UGC content", "Content production"],
     projects: [
       { name: "OUI | May 2026", cover: "/portfolio/s-3.jpg", images: r(3, 17) },
       { name: "ROAM | May 2026", cover: "/portfolio/s-18.jpg", images: r(18, 26) },
@@ -34,9 +32,6 @@ const SECTIONS: PortfolioSection[] = [
   {
     key: "personal",
     label: "Personal",
-    blurb: "For the moments that are yours — personal branding, weddings, graduations, and family. From a single shoot to a full wardrobe transformation.",
-    services: ["Shoot styling", "Event styling", "Styling transformation", "Wardrobe consultation"],
-    occasions: ["Personal branding", "Wedding & engagement", "Graduation", "Family"],
     projects: [
       { name: "Adinda Latief", cover: "/portfolio/s-88.jpg", images: r(88, 91) },
       { name: "Hanami Wang", cover: "/portfolio/s-92.jpg", images: r(92, 93) },
