@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { PHOTO, img } from "@/lib/studio";
 import { Label } from "@/components/studio-ui";
+import { StyleIdExperience } from "@/components/style-id-experience";
 
 export const metadata = { title: "Style ID — Discover your colours & fit · LOVEW Studio" };
 
@@ -31,7 +32,7 @@ export default function DiscoverPage() {
               once and shop smarter everywhere.
             </p>
             <div className="mt-11">
-              <Link href="#" className="inline-flex items-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine">
+              <Link href="#start" className="inline-flex items-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine">
                 Start your Style ID →
               </Link>
             </div>
@@ -39,6 +40,13 @@ export default function DiscoverPage() {
           <div className="relative min-h-[60vh] md:min-h-[82vh]">
             <Image src={img(PHOTO.beauty2, 1200)} alt="Style analysis" fill priority sizes="(min-width:768px) 50vw, 100vw" className="object-cover" />
           </div>
+        </div>
+      </section>
+
+      {/* The Style ID tool */}
+      <section id="start" className="scroll-mt-24 border-b border-ink/10 bg-[#faf8f5]">
+        <div className="mx-auto max-w-editorial px-6 py-20 md:py-28">
+          <StyleIdExperience />
         </div>
       </section>
 

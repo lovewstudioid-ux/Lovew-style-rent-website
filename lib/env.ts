@@ -38,6 +38,22 @@ export const env = {
   get siteUrl(): string {
     return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   },
+  /** Server-only Google Gemini API key (Style ID image generation). */
+  get geminiApiKey(): string {
+    return required("GEMINI_API_KEY");
+  },
+  /**
+   * Whether the Style ID generator is fully wired (Supabase backend + Gemini
+   * key). When false, the /api/style-id route returns a demo response so the
+   * page flow is fully clickable without provisioning keys.
+   */
+  get styleIdConfigured(): boolean {
+    return (
+      Boolean(process.env.GEMINI_API_KEY) &&
+      Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+      Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+    );
+  },
   /**
    * Whether a Supabase backend is wired up. When false (e.g. previewing the
    * marketing site before the project is provisioned), the public pages still
