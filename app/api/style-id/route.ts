@@ -3,6 +3,8 @@ import { env } from "@/lib/env";
 import { buildPrompt } from "@/lib/style-id-prompts";
 
 export const runtime = "nodejs";
+// Never statically cache this route — env checks must reflect true runtime.
+export const dynamic = "force-dynamic";
 // Image generation can take 20-40s — give the route room.
 export const maxDuration = 60;
 
