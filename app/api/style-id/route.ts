@@ -9,6 +9,23 @@ export const maxDuration = 60;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 
+/**
+ * Diagnostic — reports which env vars the server can see (booleans only, never
+ * the values). Lets us confirm the Style ID backend is wired without exposing
+ * any secret. Safe to leave in; reveals nothing sensitive.
+ */
+export async function GET() {
+  return NextResponse.json({
+    configured: env.styleIdConfigured,
+    present: {
+      GEMINI_API_KEY: Boolean(process.env.GEMINI_API_KEY),
+      NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+      SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   let form: FormData;
   try {
