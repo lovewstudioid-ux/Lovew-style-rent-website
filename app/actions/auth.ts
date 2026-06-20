@@ -104,6 +104,26 @@ export async function signUpWithPassword(formData: FormData): Promise<AuthAction
   redirect(next);
 }
 
+export async function signInWithMagicLink(formData: FormData): Promise<AuthActionResult> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const next = safeNext(String(formData.get("next") ?? ""));
+  if (!email || !email.includes("@")) {
+    return { ok: false, error: "Please enter a valid email." };
+  }
+  const supabase = createClient();
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
+  });
+  if (error) {
+    return { ok: false, error: "Couldn't send the sign-in link. Please try again." };
+  }
+  return { ok: true, message: "Check your email for a sign-in link." };
+}
+
 export async function signInWithGoogle(formData: FormData): Promise<AuthActionResult> {
   const next = safeNext(String(formData.get("next") ?? ""));
   const supabase = createClient();
