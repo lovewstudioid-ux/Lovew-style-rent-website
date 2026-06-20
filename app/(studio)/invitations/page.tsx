@@ -1,23 +1,33 @@
-import Link from "next/link";
 import Image from "next/image";
 import { PHOTO, img } from "@/lib/studio";
 import { Label } from "@/components/studio-ui";
+import { env } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
+import { DigitalsShop } from "@/components/digitals-shop";
+import type { DigitalProduct } from "@/lib/digitals";
 
-export const metadata = { title: "LOVEW Digitals — Wedding invitations · LOVEW Studio" };
+export const metadata = { title: "LOVEW Digitals — Templates & invitations · LOVEW Studio" };
+export const dynamic = "force-dynamic";
 
-const TEMPLATES = [
-  { name: "Maison", style: "Classic serif", price: "Rp 250K", photo: PHOTO.inviteCard },
-  { name: "Bloom", style: "Floral watercolour", price: "Rp 280K", photo: PHOTO.invitePaper },
-  { name: "Ribbon", style: "Romantic, ribboned", price: "Rp 300K", photo: PHOTO.inviteSuite },
-  { name: "Minim", style: "Modern minimal", price: "Rp 240K", photo: PHOTO.inviteFlat },
-];
 const STEPS = [
   { n: "01", t: "Choose a template", b: "Pick a design and preview it live." },
   { n: "02", t: "Send your details", b: "Names, date, venue, RSVP, gallery — we personalise it." },
   { n: "03", t: "Share your link", b: "Get a beautiful digital invitation link in 1–2 days." },
 ];
 
-export default function InvitationsPage() {
+export default async function InvitationsPage() {
+  let products: DigitalProduct[] = [];
+  if (env.supabaseConfigured) {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("digital_products")
+      .select("*")
+      .eq("status", "published")
+      .order("sort", { ascending: true })
+      .order("created_at", { ascending: false });
+    products = (data ?? []) as DigitalProduct[];
+  }
+
   return (
     <>
       <section className="border-b border-ink/10">
@@ -48,26 +58,10 @@ export default function InvitationsPage() {
             <Label>The store</Label>
             <h2 className="mt-4 font-display text-4xl font-normal text-ink md:text-5xl">Templates.</h2>
           </div>
-          <span className="hidden text-xs uppercase tracking-[0.2em] text-ink/40 sm:block">Personalised · delivered in 1–2 days</span>
+          <span className="hidden text-xs uppercase tracking-[0.2em] text-ink/40 sm:block">Buy · download · personalise</span>
         </div>
-        <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4">
-          {TEMPLATES.map((t) => (
-            <Link key={t.name} href="#" className="group">
-              <div className="relative aspect-[3/4] overflow-hidden bg-[#f4f2ef]">
-                <Image src={img(t.photo, 700)} alt={t.name} fill sizes="(min-width:768px) 22vw, 45vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
-                <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-ink/40 to-transparent py-6 text-[0.7rem] uppercase tracking-[0.2em] text-white opacity-0 transition-opacity group-hover:opacity-100">
-                  Live preview →
-                </span>
-              </div>
-              <div className="mt-3 flex items-start justify-between">
-                <div>
-                  <h3 className="font-display text-base text-ink">{t.name}</h3>
-                  <p className="mt-0.5 text-[0.7rem] uppercase tracking-[0.12em] text-ink/40">{t.style}</p>
-                </div>
-                <p className="text-sm text-ink/70">{t.price}</p>
-              </div>
-            </Link>
-          ))}
+        <div className="mt-12">
+          <DigitalsShop products={products} />
         </div>
       </section>
 
