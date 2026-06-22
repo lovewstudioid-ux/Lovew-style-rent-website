@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { StyleIdResult } from "@/components/style-id-result";
+import type { StyleAnalysis } from "@/lib/style-id-prompts";
 
 const INQUIRY = "https://tally.so/r/Gxd6ZL";
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -16,7 +18,7 @@ export function StyleIdExperience() {
   const [consent, setConsent] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
-  const [resultUrl, setResultUrl] = useState("");
+  const [analysis, setAnalysis] = useState<StyleAnalysis | null>(null);
   const [demo, setDemo] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -56,13 +58,8 @@ export function StyleIdExperience() {
       const res = await fetch("/api/style-id", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      if (data.status === "demo") {
-        setDemo(true);
-        setResultUrl(preview); // show the uploaded selfie in the result frame
-      } else {
-        setDemo(false);
-        setResultUrl(data.resultUrl);
-      }
+      setDemo(data.status === "demo");
+      setAnalysis(data.analysis as StyleAnalysis);
       setPhase("result");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong.");
@@ -72,7 +69,7 @@ export function StyleIdExperience() {
 
   function reset() {
     setPhase("form");
-    setResultUrl("");
+    setAnalysis(null);
     setDemo(false);
     setErr("");
   }
@@ -192,59 +189,8 @@ export function StyleIdExperience() {
       )}
 
       {/* -------------------------------------------------------------- RESULT */}
-      {phase === "result" && (
-        <div className="border border-ink/12 bg-white p-6 text-center shadow-sm md:p-8">
-          <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">
-            {name ? `${name.split(" ")[0]}'s` : "Your"} Style ID
-          </p>
-
-          <div className="relative mx-auto mt-5 w-full max-w-xs overflow-hidden border border-ink/10 bg-[#f4f2ef]">
-            {/* 9:16 frame */}
-            <div className="aspect-[9/16] w-full">
-              {resultUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={resultUrl} alt="Your Style ID analysis" className="h-full w-full object-cover" />
-              )}
-            </div>
-            {demo && (
-              <div className="absolute inset-0 flex flex-col items-center justify-end bg-gradient-to-t from-ink/75 via-ink/10 to-transparent p-5 text-center">
-                <p className="text-[0.7rem] uppercase tracking-[0.18em] text-chiffon/90">Preview mode</p>
-                <p className="mt-1 text-xs font-light leading-relaxed text-chiffon/80">
-                  Your full AI colour-analysis poster appears here once the studio switches it on.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {demo ? (
-            <p className="mx-auto mt-6 max-w-sm text-xs font-light leading-relaxed text-ink/50">
-              This is a live preview of the experience. With the backend connected, you’d get a personalised editorial
-              poster — your palette, lip &amp; cheek shades, best/worst colours, hijab or hair styles, and glasses — ready to download.
-            </p>
-          ) : (
-            <a
-              href={resultUrl}
-              download="lovew-style-id.png"
-              className="mt-6 inline-flex items-center justify-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine"
-            >
-              Download my Style ID ↓
-            </a>
-          )}
-
-          <div className="mt-5 flex flex-col items-center gap-3">
-            <a
-              href={INQUIRY}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs uppercase tracking-[0.2em] text-wine underline-offset-4 hover:underline"
-            >
-              Book a styling session →
-            </a>
-            <button type="button" onClick={reset} className="text-[0.72rem] uppercase tracking-[0.16em] text-ink/45 hover:text-ink">
-              Start over
-            </button>
-          </div>
-        </div>
+      {phase === "result" && analysis && (
+        <StyleIdResult analysis={analysis} photo={preview} name={name} demo={demo} inquiry={INQUIRY} onReset={reset} />
       )}
 
       {/* --------------------------------------------------------------- ERROR */}
