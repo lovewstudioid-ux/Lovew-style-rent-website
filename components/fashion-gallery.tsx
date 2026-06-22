@@ -7,7 +7,13 @@ import { EnquireButton } from "@/components/enquire-button";
 export function FashionGallery({ listings }: { listings: FashionListing[] }) {
   const cats = ["All", ...Array.from(new Set(listings.map((l) => l.category)))];
   const [filter, setFilter] = useState("All");
-  const shown = filter === "All" ? listings : listings.filter((l) => l.category === filter);
+  const [q, setQ] = useState("");
+  const ql = q.trim().toLowerCase();
+  const shown = listings.filter((l) => {
+    if (filter !== "All" && l.category !== filter) return false;
+    if (!ql) return true;
+    return [l.name, l.description, l.city, l.size, l.category, l.listing_type].filter(Boolean).join(" ").toLowerCase().includes(ql);
+  });
 
   if (listings.length === 0) {
     return (
@@ -21,6 +27,14 @@ export function FashionGallery({ listings }: { listings: FashionListing[] }) {
 
   return (
     <>
+      <div className="mb-5">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search — gown, kebaya, size, city…"
+          className="w-full max-w-md border border-ink/15 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-ink/35 outline-none transition-colors focus:border-wine"
+        />
+      </div>
       {cats.length > 2 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-ink/10 pb-6">
           {cats.map((c) => (
@@ -28,6 +42,7 @@ export function FashionGallery({ listings }: { listings: FashionListing[] }) {
           ))}
         </div>
       )}
+      {shown.length === 0 && <p className="mt-12 text-center text-sm font-light text-ink/45">No pieces match &ldquo;{q}&rdquo;. Try another search.</p>}
       <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-4">
         {shown.map((s) => {
           return (
