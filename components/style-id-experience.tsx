@@ -6,6 +6,7 @@ import { signInWithGoogle, signInWithMagicLink } from "@/app/actions/auth";
 import { saveProfile } from "@/app/actions/profile";
 import { PhoneInput } from "@/components/phone-input";
 import { StyleIdResult } from "@/components/style-id-result";
+import { MeasurementFlow } from "@/components/measurement-flow";
 import type { StyleAnalysis } from "@/lib/style-id-prompts";
 
 const INQUIRY = "https://tally.so/r/Gxd6ZL";
@@ -28,7 +29,42 @@ export function StyleIdExperience({
   const profileComplete = signedIn && Boolean(name);
   if (!signedIn) return <Shell><SignInStep /></Shell>;
   if (!profileComplete) return <Shell><ProfileStep /></Shell>;
-  return <Shell><Generator firstName={name.split(" ")[0]} /></Shell>;
+  return <Hub name={name} />;
+}
+
+/* ------------------------------------------------------------------- HUB */
+function Hub({ name }: { name: string }) {
+  const [mode, setMode] = useState<"choose" | "guide" | "measure">("choose");
+  const first = name.split(" ")[0] || "there";
+
+  if (mode === "measure") return <MeasurementFlow name={name} onBack={() => setMode("choose")} />;
+  if (mode === "guide") {
+    return (
+      <Shell>
+        <button type="button" onClick={() => setMode("choose")} className="mb-3 text-[0.66rem] uppercase tracking-[0.18em] text-ink/45 hover:text-wine">← Style ID</button>
+        <Generator firstName={first} />
+      </Shell>
+    );
+  }
+  return (
+    <Shell>
+      <p className="mb-1 text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">Hi {first}</p>
+      <h3 className="mb-6 font-display text-3xl font-normal text-ink">What would you like first?</h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {[
+          { eyebrow: "① Styling guide", title: "Colours & style", body: "Upload a selfie → your colour analysis, makeup, hair & glasses.", go: () => setMode("guide") },
+          { eyebrow: "② Measurement", title: "Body type & comcard", body: "Save your measurements → your body type + a shareable comcard.", go: () => setMode("measure") },
+        ].map((c) => (
+          <button key={c.title} type="button" onClick={c.go} className="group border border-ink/12 bg-white p-6 text-left shadow-sm transition-colors hover:border-wine">
+            <p className="text-[0.66rem] font-medium uppercase tracking-[0.22em] text-wine">{c.eyebrow}</p>
+            <p className="mt-2 font-display text-xl text-ink">{c.title}</p>
+            <p className="mt-2 text-sm font-light leading-relaxed text-ink/55">{c.body}</p>
+            <p className="mt-4 text-[0.7rem] uppercase tracking-[0.16em] text-ink/40 group-hover:text-wine">Start →</p>
+          </button>
+        ))}
+      </div>
+    </Shell>
+  );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {

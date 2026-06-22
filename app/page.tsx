@@ -73,6 +73,29 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+
+        {/* Free tools — the new consumer apps */}
+        <section className="border-t border-ink/10 bg-[#faf8f5]">
+          <div className="mx-auto max-w-editorial px-6 py-20 md:py-24">
+            <Label>Free tools</Label>
+            <h2 className="mt-4 max-w-xl font-display text-3xl font-normal text-ink md:text-4xl">Make it yours — free to use.</h2>
+            <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { name: "Style ID", tagline: "Your colours, makeup & fit from one selfie", href: "/discover" },
+                { name: "Style Profile", tagline: "Save your measurements & body type", href: "/style-profile" },
+                { name: "Wardrobe", tagline: "Build a gallery of your closet", href: "/wardrobe" },
+                { name: "Gift Registry", tagline: "A wishlist to share for any occasion", href: "/registry" },
+                { name: "Event Seating", tagline: "Digital seating chart with QR finder", href: "/event" },
+              ].map((t) => (
+                <Link key={t.name} href={t.href} className="group border border-ink/12 bg-white p-6 transition-colors hover:border-wine">
+                  <h3 className="font-display text-xl text-ink">{t.name}</h3>
+                  <p className="mt-2 text-[0.82rem] font-light leading-relaxed text-ink/55">{t.tagline}</p>
+                  <p className="mt-4 text-[0.7rem] uppercase tracking-[0.16em] text-ink/40 group-hover:text-wine">Open →</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
 
       <StudioFooter />
