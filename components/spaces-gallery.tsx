@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SpaceListing } from "@/lib/spaces";
+import { EnquireButton } from "@/components/enquire-button";
 
 export function SpacesGallery({ listings }: { listings: SpaceListing[] }) {
   const types = ["All", ...Array.from(new Set(listings.map((l) => l.space_type)))];
@@ -41,10 +42,6 @@ export function SpacesGallery({ listings }: { listings: SpaceListing[] }) {
 
       <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
         {shown.map((s) => {
-          const wa = s.whatsapp
-            ? `https://wa.me/${s.whatsapp}?text=${encodeURIComponent(`Hi! I'd like to check availability for ${s.name} via LOVEW Spaces.`)}`
-            : null;
-          const ig = s.instagram ? `https://instagram.com/${s.instagram}` : null;
           return (
             <div key={s.id} className="group">
               <div className="relative aspect-[4/3] overflow-hidden bg-[#f4f2ef]">
@@ -61,17 +58,8 @@ export function SpacesGallery({ listings }: { listings: SpaceListing[] }) {
                 </div>
                 {s.price_from && <p className="mt-1 text-sm text-ink/55">{s.price_from}</p>}
                 {s.description && <p className="mt-2 line-clamp-2 text-sm font-light leading-relaxed text-ink/55">{s.description}</p>}
-                <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
-                  {wa && (
-                    <a href={wa} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 border-b border-ink/30 pb-1 text-[0.72rem] uppercase tracking-[0.18em] text-ink transition-colors hover:border-wine hover:text-wine">
-                      WhatsApp →
-                    </a>
-                  )}
-                  {ig && (
-                    <a href={ig} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 border-b border-ink/30 pb-1 text-[0.72rem] uppercase tracking-[0.18em] text-ink transition-colors hover:border-wine hover:text-wine">
-                      Instagram →
-                    </a>
-                  )}
+                <div className="mt-4">
+                  <EnquireButton source="space" listingId={s.id} listingName={s.name} whatsapp={s.whatsapp} instagram={s.instagram} />
                 </div>
               </div>
             </div>

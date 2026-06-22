@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { FashionListing } from "@/lib/fashion";
+import { EnquireButton } from "@/components/enquire-button";
 
 export function FashionGallery({ listings }: { listings: FashionListing[] }) {
   const cats = ["All", ...Array.from(new Set(listings.map((l) => l.category)))];
@@ -29,8 +30,6 @@ export function FashionGallery({ listings }: { listings: FashionListing[] }) {
       )}
       <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-4">
         {shown.map((s) => {
-          const wa = s.whatsapp ? `https://wa.me/${s.whatsapp}?text=${encodeURIComponent(`Hi! I'm interested in "${s.name}" on LOVEW Fashion.`)}` : null;
-          const ig = s.instagram ? `https://instagram.com/${s.instagram}` : null;
           return (
             <div key={s.id} className="group flex flex-col">
               <div className="relative aspect-[3/4] overflow-hidden bg-[#f4f2ef]">
@@ -45,9 +44,8 @@ export function FashionGallery({ listings }: { listings: FashionListing[] }) {
                 {s.price && <p className="whitespace-nowrap text-sm text-ink/70">{s.price}</p>}
               </div>
               <p className="text-[0.7rem] uppercase tracking-[0.12em] text-ink/40">{[s.category, s.size, s.city].filter(Boolean).join(" · ")}</p>
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-                {wa && <a href={wa} target="_blank" rel="noopener noreferrer" className="border-b border-ink/30 pb-1 text-[0.7rem] uppercase tracking-[0.16em] text-ink transition-colors hover:border-wine hover:text-wine">WhatsApp →</a>}
-                {ig && <a href={ig} target="_blank" rel="noopener noreferrer" className="border-b border-ink/30 pb-1 text-[0.7rem] uppercase tracking-[0.16em] text-ink transition-colors hover:border-wine hover:text-wine">Instagram →</a>}
+              <div className="mt-3">
+                <EnquireButton source="fashion" listingId={s.id} listingName={s.name} whatsapp={s.whatsapp} instagram={s.instagram} />
               </div>
             </div>
           );
