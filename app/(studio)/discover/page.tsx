@@ -3,8 +3,11 @@ import Image from "next/image";
 import { PHOTO, img } from "@/lib/studio";
 import { Label } from "@/components/studio-ui";
 import { StyleIdExperience } from "@/components/style-id-experience";
+import { env } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Style ID — Discover your colours & fit · LOVEW Studio" };
+export const dynamic = "force-dynamic";
 
 const STEPS = [
   { n: "01", t: "Take a photo", b: "Upload a clear selfie in natural light. No app, no sign-up to start." },
@@ -14,7 +17,22 @@ const STEPS = [
 
 const PALETTE = ["#4C0B19", "#8A5A4A", "#C9BDA6", "#EDE6D6", "#938A65", "#231A16"];
 
-export default function DiscoverPage() {
+export default async function DiscoverPage() {
+  let signedIn = false;
+  let email = "";
+  let name = "";
+  let phone = "";
+  if (env.supabaseConfigured) {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      signedIn = true;
+      email = user.email ?? "";
+      const { data: profile } = await supabase.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
+      name = (profile?.full_name as string) ?? "";
+      phone = (profile?.phone as string) ?? "";
+    }
+  }
   return (
     <>
       <section className="border-b border-ink/10">
@@ -46,7 +64,7 @@ export default function DiscoverPage() {
       {/* The Style ID tool */}
       <section id="start" className="scroll-mt-24 border-b border-ink/10 bg-[#faf8f5]">
         <div className="mx-auto max-w-editorial px-6 py-20 md:py-28">
-          <StyleIdExperience />
+          <StyleIdExperience signedIn={signedIn} email={email} name={name} phone={phone} />
         </div>
       </section>
 

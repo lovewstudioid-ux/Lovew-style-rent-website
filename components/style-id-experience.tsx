@@ -1,19 +1,134 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { signInWithGoogle, signInWithMagicLink } from "@/app/actions/auth";
+import { saveProfile } from "@/app/actions/profile";
+import { PhoneInput } from "@/components/phone-input";
 import { StyleIdResult } from "@/components/style-id-result";
 import type { StyleAnalysis } from "@/lib/style-id-prompts";
 
 const INQUIRY = "https://tally.so/r/Gxd6ZL";
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-type Phase = "form" | "loading" | "result" | "error";
+type Phase = "loading" | "result" | "error";
 
-export function StyleIdExperience() {
-  const [phase, setPhase] = useState<Phase>("form");
-  const [name, setName] = useState("");
+const inputCls = "w-full border border-ink/15 bg-white px-4 py-3 text-sm text-ink placeholder:text-ink/35 outline-none transition-colors focus:border-wine";
+const labCls = "mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/55";
+const btnCls = "inline-flex w-full items-center justify-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine disabled:opacity-60";
+
+export function StyleIdExperience({
+  signedIn,
+  name,
+}: {
+  signedIn: boolean;
+  email: string;
+  name: string;
+  phone: string;
+}) {
+  const profileComplete = signedIn && Boolean(name);
+  if (!signedIn) return <Shell><SignInStep /></Shell>;
+  if (!profileComplete) return <Shell><ProfileStep /></Shell>;
+  return <Shell><Generator firstName={name.split(" ")[0]} /></Shell>;
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return <div className="mx-auto w-full max-w-xl">{children}</div>;
+}
+
+/* ---------------------------------------------------------------- SIGN IN */
+function SignInStep() {
   const [email, setEmail] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function magic(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setMsg(null);
+    const fd = new FormData();
+    fd.append("email", email.trim());
+    fd.append("next", "/discover");
+    const res = await signInWithMagicLink(fd);
+    setBusy(false);
+    setMsg(res.ok ? { ok: true, text: res.message ?? "Check your email." } : { ok: false, text: res.error });
+  }
+
+  return (
+    <div className="border border-ink/12 bg-white p-7 shadow-sm md:p-9">
+      <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">Free · sign up to start</p>
+      <h3 className="mt-3 font-display text-3xl font-normal text-ink">Get your Style ID</h3>
+      <p className="mt-2 text-sm font-light leading-relaxed text-ink/55">
+        Create a free account once — then your name &amp; contact carry across everything, no re-typing.
+      </p>
+
+      <button
+        type="button"
+        onClick={() => { const fd = new FormData(); fd.append("next", "/discover"); void signInWithGoogle(fd); }}
+        className="mt-7 flex w-full items-center justify-center gap-3 border border-ink/20 bg-white px-8 py-3.5 text-xs uppercase tracking-[0.2em] text-ink transition-colors hover:border-wine"
+      >
+        Continue with Google
+      </button>
+
+      <div className="my-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-ink/10" /><span className="text-[0.66rem] uppercase tracking-[0.2em] text-ink/40">or</span><span className="h-px flex-1 bg-ink/10" />
+      </div>
+
+      {msg?.ok ? (
+        <div className="border border-eucalyptus/40 bg-[#f3f6f2] px-4 py-5 text-center">
+          <p className="font-display text-lg text-ink">Link sent ✓</p>
+          <p className="mt-1 text-sm font-light text-ink/60">{msg.text}</p>
+        </div>
+      ) : (
+        <form onSubmit={magic} className="space-y-3">
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" className={inputCls} />
+          {msg && !msg.ok && <p className="text-xs text-wine">{msg.text}</p>}
+          <button type="submit" disabled={busy} className={btnCls}>{busy ? "Sending…" : "Email me a sign-in link →"}</button>
+        </form>
+      )}
+      <p className="mt-5 text-center text-[0.7rem] font-light text-ink/45">You can browse freely — sign in only to generate your Style ID.</p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ PROFILE STEP */
+function ProfileStep() {
+  const router = useRouter();
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!fullName.trim()) return setErr("Please enter your name.");
+    setBusy(true); setErr("");
+    const fd = new FormData();
+    fd.append("full_name", fullName.trim());
+    fd.append("phone", phone);
+    const res = await saveProfile(fd);
+    setBusy(false);
+    if (!res.ok) return setErr(res.error ?? "Could not save.");
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={submit} className="border border-ink/12 bg-white p-7 shadow-sm md:p-9">
+      <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">One-time setup</p>
+      <h3 className="mt-3 font-display text-3xl font-normal text-ink">Tell us who you are</h3>
+      <p className="mt-2 text-sm font-light leading-relaxed text-ink/55">We&apos;ll save this so you never fill it again.</p>
+      <div className="mt-7 space-y-4">
+        <div><label className={labCls}>Name</label><input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" /></div>
+        <div><label className={labCls}>WhatsApp <span className="text-ink/35">(optional)</span></label><PhoneInput value={phone} onChange={setPhone} /></div>
+      </div>
+      {err && <p className="mt-4 text-xs text-wine">{err}</p>}
+      <button type="submit" disabled={busy} className={`${btnCls} mt-6`}>{busy ? "Saving…" : "Continue →"}</button>
+    </form>
+  );
+}
+
+/* -------------------------------------------------------------- GENERATOR */
+function Generator({ firstName }: { firstName: string }) {
+  const router = useRouter();
+  const [phase, setPhase] = useState<Phase | null>(null);
   const [hijab, setHijab] = useState<boolean | null>(null);
   const [consent, setConsent] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -27,35 +142,22 @@ export function StyleIdExperience() {
     if (!f) return;
     if (!f.type.startsWith("image/")) return setErr("Please upload an image file.");
     if (f.size > 8 * 1024 * 1024) return setErr("Image is too large (max 8 MB).");
-    setErr("");
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
-  }
-
-  function validate(): string | null {
-    if (!name.trim()) return "Please enter your name.";
-    if (!EMAIL_RE.test(email)) return "Please enter a valid email.";
-    if (hijab === null) return "Please tell us whether you wear hijab.";
-    if (!file) return "Please upload a selfie.";
-    if (!consent) return "Please tick the box to continue.";
-    return null;
+    setErr(""); setFile(f); setPreview(URL.createObjectURL(f));
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const v = validate();
-    if (v) return setErr(v);
-    setErr("");
-    setPhase("loading");
+    if (hijab === null) return setErr("Please tell us whether you wear hijab.");
+    if (!file) return setErr("Please upload a selfie.");
+    if (!consent) return setErr("Please tick the box to continue.");
+    setErr(""); setPhase("loading");
     try {
       const fd = new FormData();
-      fd.append("name", name.trim());
-      fd.append("email", email.trim());
-      fd.append("whatsapp", whatsapp.trim());
       fd.append("wearsHijab", String(hijab));
       fd.append("consent", String(consent));
-      fd.append("selfie", file as File);
+      fd.append("selfie", file);
       const res = await fetch("/api/style-id", { method: "POST", body: fd });
+      if (res.status === 401) { router.refresh(); return; }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
       setDemo(data.status === "demo");
@@ -67,146 +169,71 @@ export function StyleIdExperience() {
     }
   }
 
-  function reset() {
-    setPhase("form");
-    setAnalysis(null);
-    setDemo(false);
-    setErr("");
+  function reset() { setPhase(null); setAnalysis(null); setDemo(false); setErr(""); }
+
+  if (phase === "loading") {
+    return (
+      <div className="flex flex-col items-center border border-ink/12 bg-white px-7 py-20 text-center shadow-sm">
+        <span className="h-10 w-10 animate-spin rounded-full border-2 border-ink/15 border-t-wine" />
+        <p className="mt-6 font-display text-2xl text-ink">Reading your colours…</p>
+        <p className="mt-2 text-sm font-light text-ink/55">Crafting your personal Style ID — about 30 seconds.</p>
+      </div>
+    );
+  }
+  if (phase === "result" && analysis) {
+    return <StyleIdResult analysis={analysis} photo={preview} name={firstName} demo={demo} inquiry={INQUIRY} onReset={reset} />;
+  }
+  if (phase === "error") {
+    return (
+      <div className="border border-ink/12 bg-white px-7 py-16 text-center shadow-sm">
+        <p className="font-display text-2xl text-ink">Hmm, that didn&apos;t work.</p>
+        <p className="mx-auto mt-3 max-w-sm text-sm font-light leading-relaxed text-ink/55">{err}</p>
+        <button type="button" onClick={reset} className={`${btnCls} mt-7`}>Try again →</button>
+      </div>
+    );
   }
 
-  const inputCls =
-    "w-full border border-ink/15 bg-white px-4 py-3 text-sm text-ink placeholder:text-ink/35 outline-none transition-colors focus:border-wine";
-
   return (
-    <div className="mx-auto w-full max-w-xl">
-      {/* ---------------------------------------------------------------- FORM */}
-      {phase === "form" && (
-        <form onSubmit={submit} className="border border-ink/12 bg-white p-7 shadow-sm md:p-9">
-          <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">Free · 1 photo</p>
-          <h3 className="mt-3 font-display text-3xl font-normal text-ink">Get your Style ID</h3>
-          <p className="mt-2 text-sm font-light leading-relaxed text-ink/55">
-            Your personal colour, makeup, and accessory analysis — generated from one selfie.
-          </p>
+    <form onSubmit={submit} className="border border-ink/12 bg-white p-7 shadow-sm md:p-9">
+      <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">Free · 1 photo</p>
+      <h3 className="mt-3 font-display text-3xl font-normal text-ink">Hi {firstName} — get your Style ID</h3>
+      <p className="mt-2 text-sm font-light leading-relaxed text-ink/55">Your personal colour, makeup &amp; accessory analysis from one selfie.</p>
 
-          <div className="mt-7 space-y-4">
-            <div>
-              <label className="mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/55">Name</label>
-              <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/55">Email</label>
-              <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/55">
-                WhatsApp <span className="text-ink/35">(optional)</span>
-              </label>
-              <input className={inputCls} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+62…" />
-            </div>
-
-            {/* Hijab toggle — picks the right analysis */}
-            <div>
-              <label className="mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/55">Do you wear hijab?</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { v: true, l: "Yes, I wear hijab" },
-                  { v: false, l: "No" },
-                ].map((o) => (
-                  <button
-                    key={o.l}
-                    type="button"
-                    onClick={() => setHijab(o.v)}
-                    className={`border px-4 py-2.5 text-xs uppercase tracking-[0.1em] transition-colors ${
-                      hijab === o.v ? "border-wine bg-wine text-chiffon" : "border-ink/15 text-ink/65 hover:border-wine"
-                    }`}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Selfie upload */}
-            <div>
-              <label className="mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/55">Your selfie</label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-              />
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="flex w-full items-center gap-4 border border-dashed border-ink/25 bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine"
-              >
-                {preview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={preview} alt="Your selfie" className="h-16 w-16 flex-shrink-0 rounded-sm object-cover" />
-                ) : (
-                  <span className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-sm bg-ink/5 text-2xl text-ink/30">＋</span>
-                )}
-                <span className="text-sm text-ink/60">
-                  {file ? <span className="text-ink">{file.name}</span> : "Tap to upload a clear, front-facing selfie"}
-                  <span className="mt-0.5 block text-[0.7rem] text-ink/40">Good light · no filter · face visible · JPG/PNG, max 8 MB</span>
-                </span>
-              </button>
-            </div>
-
-            {/* Consent */}
-            <label className="flex cursor-pointer items-start gap-3 pt-1">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-                className="mt-0.5 h-4 w-4 flex-shrink-0 accent-wine"
-              />
-              <span className="text-[0.72rem] font-light leading-relaxed text-ink/55">
-                I agree that LOVEW Studio may use my photo to generate my Style ID and contact me with styling tips. I can opt out anytime.
-              </span>
-            </label>
+      <div className="mt-7 space-y-5">
+        <div>
+          <label className={labCls}>Do you wear hijab?</label>
+          <div className="grid grid-cols-2 gap-2">
+            {[{ v: true, l: "Yes, I wear hijab" }, { v: false, l: "No" }].map((o) => (
+              <button key={o.l} type="button" onClick={() => setHijab(o.v)} className={`border px-4 py-2.5 text-xs uppercase tracking-[0.1em] transition-colors ${hijab === o.v ? "border-wine bg-wine text-chiffon" : "border-ink/15 text-ink/65 hover:border-wine"}`}>{o.l}</button>
+            ))}
           </div>
-
-          {err && <p className="mt-4 text-xs text-wine">{err}</p>}
-
-          <button
-            type="submit"
-            className="mt-6 inline-flex w-full items-center justify-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine"
-          >
-            Reveal my Style ID →
-          </button>
-        </form>
-      )}
-
-      {/* ------------------------------------------------------------- LOADING */}
-      {phase === "loading" && (
-        <div className="flex flex-col items-center border border-ink/12 bg-white px-7 py-20 text-center shadow-sm">
-          <span className="h-10 w-10 animate-spin rounded-full border-2 border-ink/15 border-t-wine" />
-          <p className="mt-6 font-display text-2xl text-ink">Reading your colours…</p>
-          <p className="mt-2 text-sm font-light text-ink/55">Crafting your personal Style ID — this takes about 30 seconds.</p>
         </div>
-      )}
 
-      {/* -------------------------------------------------------------- RESULT */}
-      {phase === "result" && analysis && (
-        <StyleIdResult analysis={analysis} photo={preview} name={name} demo={demo} inquiry={INQUIRY} onReset={reset} />
-      )}
-
-      {/* --------------------------------------------------------------- ERROR */}
-      {phase === "error" && (
-        <div className="border border-ink/12 bg-white px-7 py-16 text-center shadow-sm">
-          <p className="font-display text-2xl text-ink">Hmm, that didn’t work.</p>
-          <p className="mx-auto mt-3 max-w-sm text-sm font-light leading-relaxed text-ink/55">{err}</p>
-          <button
-            type="button"
-            onClick={() => setPhase("form")}
-            className="mt-7 inline-flex items-center justify-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine"
-          >
-            Try again →
+        <div>
+          <label className={labCls}>Your selfie</label>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
+          <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-4 border border-dashed border-ink/25 bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine">
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt="Your selfie" className="h-16 w-16 flex-shrink-0 rounded-sm object-cover" />
+            ) : (
+              <span className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-sm bg-ink/5 text-2xl text-ink/30">＋</span>
+            )}
+            <span className="text-sm text-ink/60">
+              {file ? <span className="text-ink">{file.name}</span> : "Tap to upload a clear, front-facing selfie"}
+              <span className="mt-0.5 block text-[0.7rem] text-ink/40">Good light · no filter · face visible · JPG/PNG, max 8 MB</span>
+            </span>
           </button>
         </div>
-      )}
-    </div>
+
+        <label className="flex cursor-pointer items-start gap-3 pt-1">
+          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-wine" />
+          <span className="text-[0.72rem] font-light leading-relaxed text-ink/55">I agree that LOVEW Studio may use my photo to generate my Style ID and contact me with styling tips. I can opt out anytime.</span>
+        </label>
+      </div>
+
+      {err && <p className="mt-4 text-xs text-wine">{err}</p>}
+      <button type="submit" className={`${btnCls} mt-6`}>Reveal my Style ID →</button>
+    </form>
   );
 }

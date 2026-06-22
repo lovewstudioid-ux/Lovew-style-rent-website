@@ -6,7 +6,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MAX_BYTES = 8 * 1024 * 1024;
 
 const DEMO: StyleAnalysis = {
@@ -46,15 +45,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const name = String(form.get("name") ?? "").trim();
-  const email = String(form.get("email") ?? "").trim();
-  const whatsapp = String(form.get("whatsapp") ?? "").trim();
   const wearsHijab = String(form.get("wearsHijab")) === "true";
   const consent = String(form.get("consent")) === "true";
   const selfie = form.get("selfie");
 
-  if (!name) return NextResponse.json({ error: "Please enter your name." }, { status: 400 });
-  if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Please enter a valid email." }, { status: 400 });
   if (!consent) return NextResponse.json({ error: "Consent is required to continue." }, { status: 400 });
   if (!(selfie instanceof File)) return NextResponse.json({ error: "Please upload a selfie." }, { status: 400 });
   if (!selfie.type.startsWith("image/")) return NextResponse.json({ error: "The selfie must be an image." }, { status: 400 });
@@ -66,14 +60,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { createAdminClient } = await import("@/lib/supabase/server");
+    const { createClient, createAdminClient } = await import("@/lib/supabase/server");
+    // Identity comes from the signed-in account — never from the form.
+    const userClient = createClient();
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+    const { data: profile } = await userClient.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
+    const name = (profile?.full_name as string) || user.email || "Customer";
+    const email = user.email ?? "";
+    const whatsapp = (profile?.phone as string) || null;
+
     const supabase = createAdminClient();
     const bytes = Buffer.from(await selfie.arrayBuffer());
 
     // 1. Save the lead first.
     const { data: lead } = await supabase
       .from("style_id_leads")
-      .insert({ name, email, whatsapp: whatsapp || null, wears_hijab: wearsHijab, consent, status: "pending" })
+      .insert({ name, email, whatsapp, wears_hijab: wearsHijab, consent, status: "pending" })
       .select("id")
       .single();
     const id = lead?.id as string | undefined;

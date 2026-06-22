@@ -41,3 +41,29 @@ export async function updateProfile(
   revalidatePath("/account", "layout");
   return { ok: true };
 }
+
+/**
+ * Lightweight profile capture used by the studio tools (Style ID etc.).
+ * Upserts so it works for first-time magic-link users with no profile row yet.
+ */
+export async function saveProfile(
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Please sign in first." };
+
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  if (!fullName) return { ok: false, error: "Please enter your name." };
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert({ id: user.id, full_name: fullName, phone: phone || null }, { onConflict: "id" });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/discover");
+  return { ok: true };
+}
