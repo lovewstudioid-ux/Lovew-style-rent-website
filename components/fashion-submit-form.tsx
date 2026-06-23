@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { submitListing } from "@/app/actions/fashion";
 import { FASHION_CATEGORIES, LISTING_TYPES } from "@/lib/fashion";
 import { PhoneInput } from "@/components/phone-input";
+import { CITIES } from "@/lib/options";
 
 export function FashionSubmitForm() {
   const [busy, setBusy] = useState(false);
@@ -64,7 +65,7 @@ export function FashionSubmitForm() {
       <div><label className={lab}>Rent or buy?</label><select className={inputCls} value={type} onChange={(e) => setType(e.target.value)}>{LISTING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
       <div><label className={lab}>Size <span className="text-ink/35">(optional)</span></label><input className={inputCls} value={size} onChange={(e) => setSize(e.target.value)} placeholder="S / M / fits 36–40" /></div>
       <div><label className={lab}>Price <span className="text-ink/35">(optional)</span></label><input className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Rp 450K / day" /></div>
-      <div><label className={lab}>City</label><input className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Jakarta" /></div>
+      <div><label className={lab}>City</label><select className={inputCls} value={city} onChange={(e) => setCity(e.target.value)}><option value="">Select</option>{CITIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
       <div className="md:col-span-2"><label className={lab}>Description <span className="text-ink/35">(optional)</span></label><textarea className={inputCls} rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Fabric, condition, what's included…" /></div>
       <div><label className={lab}>WhatsApp</label><PhoneInput value={wa} onChange={setWa} /></div>
       <div><label className={lab}>Instagram</label><input className={inputCls} value={ig} onChange={(e) => setIg(e.target.value)} placeholder="@yourshop" /></div>

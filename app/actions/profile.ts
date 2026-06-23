@@ -55,13 +55,25 @@ export async function saveProfile(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Please sign in first." };
 
+  const get = (k: string) => String(formData.get(k) ?? "").trim() || null;
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim();
-  if (!fullName) return { ok: false, error: "Please enter your name." };
+  if (!fullName) return { ok: false, error: "Please enter your full name." };
 
-  const { error } = await supabase
-    .from("profiles")
-    .upsert({ id: user.id, full_name: fullName, phone: phone || null }, { onConflict: "id" });
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      full_name: fullName,
+      nick_name: get("nick_name"),
+      phone: get("phone"),
+      instagram: get("instagram"),
+      birth_date: get("birth_date"),
+      gender: get("gender"),
+      country: get("country"),
+      city: get("city"),
+      job_title: get("job_title"),
+    },
+    { onConflict: "id" },
+  );
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/discover");

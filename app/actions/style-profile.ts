@@ -8,8 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 export type StyleProfileResult = { ok: boolean; error?: string };
 
 const FIELDS = [
-  "full_name", "whatsapp", "height_cm", "weight_kg",
-  "bust", "waist", "hips", "top_size", "bottom_size", "dress_size", "shoe_size", "notes",
+  "height_cm", "weight_kg", "bust", "waist", "hips", "high_hip",
+  "top_size", "pants_size", "shoe_size", "feet_length_cm", "notes",
 ] as const;
 
 export async function saveStyleProfile(formData: FormData): Promise<StyleProfileResult> {

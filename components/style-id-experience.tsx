@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signInWithGoogle, signInWithMagicLink } from "@/app/actions/auth";
 import { saveProfile } from "@/app/actions/profile";
 import { PhoneInput } from "@/components/phone-input";
+import { GENDERS, COUNTRIES, CITIES, BIRTH_DAYS, BIRTH_MONTHS, BIRTH_YEARS } from "@/lib/options";
 import { StyleIdResult } from "@/components/style-id-result";
 import { MeasurementFlow } from "@/components/measurement-flow";
 import type { StyleAnalysis } from "@/lib/style-id-prompts";
@@ -19,6 +20,7 @@ const btnCls = "inline-flex w-full items-center justify-center gap-3 bg-ink px-8
 
 export function StyleIdExperience({
   signedIn,
+  email,
   name,
 }: {
   signedIn: boolean;
@@ -28,7 +30,7 @@ export function StyleIdExperience({
 }) {
   const profileComplete = signedIn && Boolean(name);
   if (!signedIn) return <Shell><SignInStep /></Shell>;
-  if (!profileComplete) return <Shell><ProfileStep /></Shell>;
+  if (!profileComplete) return <Shell><ProfileStep email={email} /></Shell>;
   return <Hub name={name} />;
 }
 
@@ -126,20 +128,41 @@ function SignInStep() {
 }
 
 /* ------------------------------------------------------------ PROFILE STEP */
-function ProfileStep() {
+function Select({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: readonly string[]; placeholder: string }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+      <option value="">{placeholder}</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
+function ProfileStep({ email }: { email: string }) {
   const router = useRouter();
-  const [fullName, setFullName] = useState("");
+  const [v, setV] = useState<Record<string, string>>({ country: "Indonesia" });
   const [phone, setPhone] = useState("");
+  const [bd, setBd] = useState({ d: "", m: "", y: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const set = (k: string, val: string) => setV((s) => ({ ...s, [k]: val }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!fullName.trim()) return setErr("Please enter your name.");
+    if (!v.full_name?.trim()) return setErr("Please enter your full name.");
     setBusy(true); setErr("");
     const fd = new FormData();
-    fd.append("full_name", fullName.trim());
+    fd.append("full_name", v.full_name.trim());
+    fd.append("nick_name", v.nick_name ?? "");
     fd.append("phone", phone);
+    fd.append("instagram", (v.instagram ?? "").replace(/^@/, ""));
+    fd.append("gender", v.gender ?? "");
+    fd.append("country", v.country ?? "");
+    fd.append("city", v.city ?? "");
+    fd.append("job_title", v.job_title ?? "");
+    if (bd.d && bd.m && bd.y) {
+      const mm = String(BIRTH_MONTHS.indexOf(bd.m) + 1).padStart(2, "0");
+      fd.append("birth_date", `${bd.y}-${mm}-${String(bd.d).padStart(2, "0")}`);
+    }
     const res = await saveProfile(fd);
     setBusy(false);
     if (!res.ok) return setErr(res.error ?? "Could not save.");
@@ -149,14 +172,29 @@ function ProfileStep() {
   return (
     <form onSubmit={submit} className="border border-ink/12 bg-white p-7 shadow-sm md:p-9">
       <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">One-time setup</p>
-      <h3 className="mt-3 font-display text-3xl font-normal text-ink">Tell us who you are</h3>
-      <p className="mt-2 text-sm font-light leading-relaxed text-ink/55">We&apos;ll save this so you never fill it again.</p>
-      <div className="mt-7 space-y-4">
-        <div><label className={labCls}>Name</label><input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" /></div>
-        <div><label className={labCls}>WhatsApp <span className="text-ink/35">(optional)</span></label><PhoneInput value={phone} onChange={setPhone} /></div>
+      <h3 className="mt-3 font-display text-3xl font-normal text-ink">Create your profile</h3>
+      <p className="mt-2 text-sm font-light leading-relaxed text-ink/55">Saved once, reused everywhere — you&apos;ll never fill this again.</p>
+      <div className="mt-7 grid grid-cols-2 gap-4">
+        <div><label className={labCls}>Full name</label><input className={inputCls} value={v.full_name ?? ""} onChange={(e) => set("full_name", e.target.value)} placeholder="Full name" /></div>
+        <div><label className={labCls}>Nickname</label><input className={inputCls} value={v.nick_name ?? ""} onChange={(e) => set("nick_name", e.target.value)} placeholder="What we'll call you" /></div>
+        <div className="col-span-2"><label className={labCls}>Email</label><input className={`${inputCls} bg-[#faf8f5] text-ink/60`} value={email} readOnly /></div>
+        <div className="col-span-2"><label className={labCls}>Phone number</label><PhoneInput value={phone} onChange={setPhone} /></div>
+        <div className="col-span-2"><label className={labCls}>Instagram <span className="text-ink/35">(optional)</span></label><input className={inputCls} value={v.instagram ?? ""} onChange={(e) => set("instagram", e.target.value)} placeholder="@username" /></div>
+        <div className="col-span-2">
+          <label className={labCls}>Birth date</label>
+          <div className="grid grid-cols-3 gap-2">
+            <select value={bd.d} onChange={(e) => setBd((s) => ({ ...s, d: e.target.value }))} className={inputCls}><option value="">Day</option>{BIRTH_DAYS.map((d) => <option key={d} value={d}>{d}</option>)}</select>
+            <select value={bd.m} onChange={(e) => setBd((s) => ({ ...s, m: e.target.value }))} className={inputCls}><option value="">Month</option>{BIRTH_MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}</select>
+            <select value={bd.y} onChange={(e) => setBd((s) => ({ ...s, y: e.target.value }))} className={inputCls}><option value="">Year</option>{BIRTH_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+          </div>
+        </div>
+        <div><label className={labCls}>Gender</label><Select value={v.gender ?? ""} onChange={(x) => set("gender", x)} options={GENDERS} placeholder="Select" /></div>
+        <div><label className={labCls}>Job title</label><input className={inputCls} value={v.job_title ?? ""} onChange={(e) => set("job_title", e.target.value)} placeholder="e.g. Designer" /></div>
+        <div><label className={labCls}>Country</label><Select value={v.country ?? ""} onChange={(x) => set("country", x)} options={COUNTRIES} placeholder="Select" /></div>
+        <div><label className={labCls}>City</label><Select value={v.city ?? ""} onChange={(x) => set("city", x)} options={CITIES} placeholder="Select" /></div>
       </div>
       {err && <p className="mt-4 text-xs text-wine">{err}</p>}
-      <button type="submit" disabled={busy} className={`${btnCls} mt-6`}>{busy ? "Saving…" : "Continue →"}</button>
+      <button type="submit" disabled={busy} className={`${btnCls} mt-6`}>{busy ? "Saving…" : "Save & continue →"}</button>
     </form>
   );
 }

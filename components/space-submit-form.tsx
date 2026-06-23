@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { submitSpace } from "@/app/actions/spaces";
 import { SPACE_TYPES } from "@/lib/spaces";
 import { PhoneInput } from "@/components/phone-input";
+import { CITIES } from "@/lib/options";
 
 export function SpaceSubmitForm() {
   const [busy, setBusy] = useState(false);
@@ -83,7 +84,7 @@ export function SpaceSubmitForm() {
       </div>
       <div>
         <label className={lab}>City</label>
-        <input className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Jakarta" />
+        <select className={inputCls} value={city} onChange={(e) => setCity(e.target.value)}><option value="">Select</option>{CITIES.map((c) => <option key={c} value={c}>{c}</option>)}</select>
       </div>
       <div>
         <label className={lab}>Area</label>
