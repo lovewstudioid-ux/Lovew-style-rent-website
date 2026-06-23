@@ -217,7 +217,7 @@ function Generator({ firstName }: { firstName: string }) {
     );
   }
   if (phase === "result" && analysis) {
-    return <StyleIdResult analysis={analysis} photo={preview} name={firstName} demo={demo} inquiry={INQUIRY} onReset={reset} />;
+    return <StyleIdResult analysis={analysis} photo={preview} name={firstName} demo={demo} inquiry={INQUIRY} onReset={reset} photoFile={file} />;
   }
   if (phase === "error") {
     return (

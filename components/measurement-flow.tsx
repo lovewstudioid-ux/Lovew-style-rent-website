@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { saveMeasurement } from "@/app/actions/measurement";
 import { computeBodyType } from "@/lib/body-type";
+import { downloadPng, downloadPdf, shareCard } from "@/lib/card-export";
 
 const FIELDS: { name: string; label: string; ph?: string }[] = [
   { name: "height_cm", label: "Height (cm)", ph: "165" },
@@ -26,8 +27,10 @@ export function MeasurementFlow({ name, onBack }: { name: string; onBack: () => 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
+  const fname = `lovew-comcard-${first.toLowerCase()}`;
+  async function exportRun(kind: string, fn: () => Promise<unknown>) { setExporting(kind); try { await fn(); } finally { setExporting(""); } }
 
   const set = (k: string, v: string) => setVals((s) => ({ ...s, [k]: v }));
   const bodyType = computeBodyType(vals.bust ?? "", vals.waist ?? "", vals.hips ?? "");
@@ -42,21 +45,6 @@ export function MeasurementFlow({ name, onBack }: { name: string; onBack: () => 
     setBusy(false);
     if (!res.ok) return setErr(res.error ?? "Could not save.");
     setDone(true);
-  }
-
-  async function download() {
-    if (!cardRef.current) return;
-    setSaving(true);
-    try {
-      const { default: html2canvas } = await import("html2canvas");
-      const canvas = await html2canvas(cardRef.current, { backgroundColor: "#ffffff", scale: 2 });
-      const a = document.createElement("a");
-      a.download = `lovew-comcard-${first.toLowerCase()}.png`;
-      a.href = canvas.toDataURL("image/png");
-      a.click();
-    } finally {
-      setSaving(false);
-    }
   }
 
   if (done) {
@@ -79,8 +67,12 @@ export function MeasurementFlow({ name, onBack }: { name: string; onBack: () => 
           </div>
           <p className="mt-6 border-t border-ink/10 pt-4 text-center text-[0.6rem] uppercase tracking-[0.22em] text-ink/40">lovew.studio · your measurement card</p>
         </div>
-        <div className="mt-5 flex flex-col items-center gap-3">
-          <button type="button" onClick={download} disabled={saving} className={`${btnCls} max-w-xs`}>{saving ? "Saving…" : "Download my comcard ↓"}</button>
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <button type="button" onClick={() => exportRun("png", () => downloadPng(cardRef.current!, fname))} disabled={!!exporting} className="inline-flex items-center justify-center bg-ink px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-white transition-colors hover:bg-wine disabled:opacity-60">{exporting === "png" ? "…" : "Image ↓"}</button>
+          <button type="button" onClick={() => exportRun("pdf", () => downloadPdf(cardRef.current!, fname))} disabled={!!exporting} className="inline-flex items-center justify-center border border-ink/20 px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine disabled:opacity-60">{exporting === "pdf" ? "…" : "PDF"}</button>
+          <button type="button" onClick={() => exportRun("share", () => shareCard(cardRef.current!, "My LOVEW comcard", "My measurement card from LOVEW — lovew.studio/discover"))} disabled={!!exporting} className="inline-flex items-center justify-center border border-ink/20 px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine disabled:opacity-60">{exporting === "share" ? "…" : "Share"}</button>
+        </div>
+        <div className="mt-3 flex flex-col items-center gap-2">
           <button type="button" onClick={() => setDone(false)} className="text-[0.72rem] uppercase tracking-[0.16em] text-ink/45 hover:text-ink">Edit measurements</button>
           <button type="button" onClick={onBack} className="text-[0.72rem] uppercase tracking-[0.16em] text-ink/45 hover:text-ink">← Back to Style ID</button>
         </div>
