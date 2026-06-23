@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
   const wearsHijab = String(form.get("wearsHijab")) === "true";
   const consent = String(form.get("consent")) === "true";
   const selfie = form.get("selfie");
+  const fullbody = form.get("fullbody");
 
   if (!consent) return NextResponse.json({ error: "Consent is required to continue." }, { status: 400 });
   if (!(selfie instanceof File)) return NextResponse.json({ error: "Please upload a selfie." }, { status: 400 });
@@ -88,15 +89,24 @@ export async function POST(req: NextRequest) {
       await supabase.from("style_id_leads").update({ selfie_path: selfiePath }).eq("id", id);
     }
 
-    // 3. Analyse the photo → structured JSON (Gemini vision → text, reliable).
+    // 3. Analyse the photo(s) → structured JSON (Gemini vision → text, reliable).
     const prompt = buildAnalysisPrompt({ wearsHijab });
+    const parts: Array<Record<string, unknown>> = [
+      { text: prompt },
+      { inline_data: { mime_type: selfie.type || "image/jpeg", data: bytes.toString("base64") } },
+    ];
+    if (fullbody instanceof File && fullbody.size > 0 && fullbody.size <= MAX_BYTES && fullbody.type.startsWith("image/")) {
+      const fb = Buffer.from(await fullbody.arrayBuffer());
+      parts.push({ text: "An optional full-body photo of the same person for additional context:" });
+      parts.push({ inline_data: { mime_type: fullbody.type, data: fb.toString("base64") } });
+    }
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.geminiApiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: selfie.type || "image/jpeg", data: bytes.toString("base64") } }] }],
+          contents: [{ parts }],
           generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
         }),
       },

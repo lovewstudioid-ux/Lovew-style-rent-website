@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { FashionListing } from "@/lib/fashion";
 import { EnquireButton } from "@/components/enquire-button";
 
-export function FashionGallery({ listings }: { listings: FashionListing[] }) {
+export function FashionGallery({ listings, customerName = "", customerPhone = "" }: { listings: FashionListing[]; customerName?: string; customerPhone?: string }) {
   const cats = ["All", ...Array.from(new Set(listings.map((l) => l.category)))];
   const [filter, setFilter] = useState("All");
   const [q, setQ] = useState("");
@@ -60,7 +60,7 @@ export function FashionGallery({ listings }: { listings: FashionListing[] }) {
               </div>
               <p className="text-[0.7rem] uppercase tracking-[0.12em] text-ink/40">{[s.category, s.size, s.city].filter(Boolean).join(" · ")}</p>
               <div className="mt-3">
-                <EnquireButton source="fashion" listingId={s.id} listingName={s.name} whatsapp={s.whatsapp} instagram={s.instagram} />
+                <EnquireButton source="fashion" listingId={s.id} listingName={s.name} whatsapp={s.whatsapp} instagram={s.instagram} defaultName={customerName} defaultPhone={customerPhone} />
               </div>
             </div>
           );

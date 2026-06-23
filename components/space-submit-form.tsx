@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { submitSpace } from "@/app/actions/spaces";
 import { SPACE_TYPES } from "@/lib/spaces";
+import { PhoneInput } from "@/components/phone-input";
 
 export function SpaceSubmitForm() {
   const [busy, setBusy] = useState(false);
@@ -94,7 +95,7 @@ export function SpaceSubmitForm() {
       </div>
       <div>
         <label className={lab}>WhatsApp</label>
-        <input className={inputCls} value={wa} onChange={(e) => setWa(e.target.value)} placeholder="0813…" />
+        <PhoneInput value={wa} onChange={setWa} />
       </div>
       <div>
         <label className={lab}>Instagram</label>

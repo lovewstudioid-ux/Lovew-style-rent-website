@@ -172,13 +172,22 @@ function Generator({ firstName }: { firstName: string }) {
   const [analysis, setAnalysis] = useState<StyleAnalysis | null>(null);
   const [demo, setDemo] = useState(false);
   const [err, setErr] = useState("");
+  const [fullFile, setFullFile] = useState<File | null>(null);
+  const [fullPreview, setFullPreview] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const fullRef = useRef<HTMLInputElement>(null);
 
   function pickFile(f: File | null) {
     if (!f) return;
     if (!f.type.startsWith("image/")) return setErr("Please upload an image file.");
     if (f.size > 8 * 1024 * 1024) return setErr("Image is too large (max 8 MB).");
     setErr(""); setFile(f); setPreview(URL.createObjectURL(f));
+  }
+  function pickFull(f: File | null) {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return setErr("Please upload an image file.");
+    if (f.size > 8 * 1024 * 1024) return setErr("Image is too large (max 8 MB).");
+    setErr(""); setFullFile(f); setFullPreview(URL.createObjectURL(f));
   }
 
   async function submit(e: React.FormEvent) {
@@ -192,6 +201,7 @@ function Generator({ firstName }: { firstName: string }) {
       fd.append("wearsHijab", String(hijab));
       fd.append("consent", String(consent));
       fd.append("selfie", file);
+      if (fullFile) fd.append("fullbody", fullFile);
       const res = await fetch("/api/style-id", { method: "POST", body: fd });
       if (res.status === 401) { router.refresh(); return; }
       const data = await res.json();
@@ -258,6 +268,23 @@ function Generator({ firstName }: { firstName: string }) {
             <span className="text-sm text-ink/60">
               {file ? <span className="text-ink">{file.name}</span> : "Tap to upload a clear, front-facing selfie"}
               <span className="mt-0.5 block text-[0.7rem] text-ink/40">Good light · no filter · face visible · JPG/PNG, max 8 MB</span>
+            </span>
+          </button>
+        </div>
+
+        <div>
+          <label className={labCls}>Full-body photo <span className="text-ink/35">(optional · recommended)</span></label>
+          <input ref={fullRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickFull(e.target.files?.[0] ?? null)} />
+          <button type="button" onClick={() => fullRef.current?.click()} className="flex w-full items-center gap-4 border border-dashed border-ink/25 bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine">
+            {fullPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fullPreview} alt="Full body" className="h-16 w-16 flex-shrink-0 rounded-sm object-cover" />
+            ) : (
+              <span className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-sm bg-ink/5 text-2xl text-ink/30">＋</span>
+            )}
+            <span className="text-sm text-ink/60">
+              {fullFile ? <span className="text-ink">{fullFile.name}</span> : "Add a full-body photo for better fit & outfit advice"}
+              <span className="mt-0.5 block text-[0.7rem] text-ink/40">Optional · helps with body type & styling</span>
             </span>
           </button>
         </div>

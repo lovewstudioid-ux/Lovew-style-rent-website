@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function SpacesPage() {
   let listings: SpaceListing[] = [];
+  let customerName = "";
+  let customerPhone = "";
   if (env.supabaseConfigured) {
     const supabase = createClient();
     const { data } = await supabase
@@ -20,6 +22,12 @@ export default async function SpacesPage() {
       .eq("status", "published")
       .order("created_at", { ascending: false });
     listings = (data ?? []) as SpaceListing[];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: p } = await supabase.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
+      customerName = (p?.full_name as string) ?? "";
+      customerPhone = (p?.phone as string) ?? "";
+    }
   }
 
   return (
@@ -44,7 +52,7 @@ export default async function SpacesPage() {
       </section>
 
       <section className="mx-auto max-w-editorial px-6 py-16 md:py-24">
-        <SpacesGallery listings={listings} />
+        <SpacesGallery listings={listings} customerName={customerName} customerPhone={customerPhone} />
       </section>
     </>
   );

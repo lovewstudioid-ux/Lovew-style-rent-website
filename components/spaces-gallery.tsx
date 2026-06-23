@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { SpaceListing } from "@/lib/spaces";
 import { EnquireButton } from "@/components/enquire-button";
 
-export function SpacesGallery({ listings }: { listings: SpaceListing[] }) {
+export function SpacesGallery({ listings, customerName = "", customerPhone = "" }: { listings: SpaceListing[]; customerName?: string; customerPhone?: string }) {
   const types = ["All", ...Array.from(new Set(listings.map((l) => l.space_type)))];
   const [filter, setFilter] = useState("All");
   const shown = filter === "All" ? listings : listings.filter((l) => l.space_type === filter);
@@ -59,7 +59,7 @@ export function SpacesGallery({ listings }: { listings: SpaceListing[] }) {
                 {s.price_from && <p className="mt-1 text-sm text-ink/55">{s.price_from}</p>}
                 {s.description && <p className="mt-2 line-clamp-2 text-sm font-light leading-relaxed text-ink/55">{s.description}</p>}
                 <div className="mt-4">
-                  <EnquireButton source="space" listingId={s.id} listingName={s.name} whatsapp={s.whatsapp} instagram={s.instagram} />
+                  <EnquireButton source="space" listingId={s.id} listingName={s.name} whatsapp={s.whatsapp} instagram={s.instagram} defaultName={customerName} defaultPhone={customerPhone} />
                 </div>
               </div>
             </div>

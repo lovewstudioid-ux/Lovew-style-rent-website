@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createInquiry } from "@/app/actions/inquiries";
+import { PhoneInput } from "@/components/phone-input";
 
 export function EnquireButton({
   source,
@@ -9,25 +10,29 @@ export function EnquireButton({
   listingName,
   whatsapp,
   instagram,
+  defaultName = "",
+  defaultPhone = "",
 }: {
   source: "space" | "fashion";
   listingId: string;
   listingName: string;
   whatsapp: string | null;
   instagram: string | null;
+  defaultName?: string;
+  defaultPhone?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
+  const [name, setName] = useState(defaultName);
+  const [contact, setContact] = useState(defaultPhone);
   const [note, setNote] = useState("");
   const [done, setDone] = useState<{ ref: string; wa: string | null } | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setErr("Please enter your name.");
-    if (!contact.trim()) return setErr("Please enter your WhatsApp or email.");
+    if (!contact.trim()) return setErr("Please enter your WhatsApp number.");
     setBusy(true); setErr("");
     const fd = new FormData();
     fd.append("source", source);
@@ -83,7 +88,7 @@ export function EnquireButton({
             ) : (
               <form onSubmit={submit} className="mt-5 space-y-3">
                 <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-                <input className={inputCls} value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Your WhatsApp or email" />
+                <PhoneInput value={contact} onChange={setContact} />
                 <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Date / details (optional)" />
                 {err && <p className="text-xs text-wine">{err}</p>}
                 <button type="submit" disabled={busy} className="w-full bg-ink px-6 py-3 text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-wine disabled:opacity-60">
