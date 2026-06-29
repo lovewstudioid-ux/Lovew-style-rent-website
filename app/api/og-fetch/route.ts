@@ -1,0 +1,108 @@
+/**
+ * GET /api/og-fetch?url=...
+ *
+ * Fetches Open Graph / meta tags from a product URL so the registry owner
+ * can paste a Shopee/Tokopedia/IG/brand link and have name + image + price
+ * auto-filled without typing.
+ *
+ * Works for any page that sets standard OG tags (og:title, og:image,
+ * product:price:amount).  Shopee and Tokopedia both do this.  Instagram
+ * public posts do too (title = caption, image = post image).
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/* Grab first match of an OG meta tag in either attribute order. */
+function extractMeta(html: string, property: string): string {
+  const re1 = new RegExp(
+    `<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`,
+    "i",
+  );
+  const re2 = new RegExp(
+    `<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`,
+    "i",
+  );
+  return (html.match(re1) ?? html.match(re2))?.[1]?.trim() ?? "";
+}
+
+function extractName(html: string, property: string): string {
+  const re1 = new RegExp(
+    `<meta[^>]+name=["']${property}["'][^>]+content=["']([^"']+)["']`,
+    "i",
+  );
+  const re2 = new RegExp(
+    `<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${property}["']`,
+    "i",
+  );
+  return (html.match(re1) ?? html.match(re2))?.[1]?.trim() ?? "";
+}
+
+function extractTitle(html: string): string {
+  return (
+    extractMeta(html, "og:title") ||
+    extractName(html, "twitter:title") ||
+    (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? "")
+  );
+}
+
+function extractImage(html: string): string {
+  return (
+    extractMeta(html, "og:image") ||
+    extractName(html, "twitter:image") ||
+    extractName(html, "twitter:image:src") ||
+    ""
+  );
+}
+
+function extractPrice(html: string): string {
+  return (
+    extractMeta(html, "product:price:amount") ||
+    extractMeta(html, "og:price:amount") ||
+    extractMeta(html, "product:price") ||
+    extractMeta(html, "og:price") ||
+    ""
+  );
+}
+
+export async function GET(req: NextRequest) {
+  const raw = req.nextUrl.searchParams.get("url") ?? "";
+  if (!raw) return NextResponse.json({ error: "URL required" }, { status: 400 });
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Bad protocol");
+  } catch {
+    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+  }
+
+  try {
+    const res = await fetch(url.toString(), {
+      headers: {
+        // Mimic Facebook's link scraper — most shops allow this bot
+        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
+      },
+      signal: AbortSignal.timeout(8000),
+      redirect: "follow",
+    });
+
+    const html = await res.text();
+    const title = extractTitle(html);
+    const image = extractImage(html);
+    const price = extractPrice(html);
+
+    if (!title && !image) {
+      return NextResponse.json({ error: "No product info found for this URL" }, { status: 422 });
+    }
+
+    return NextResponse.json({ title, image, price });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "fetch failed";
+    return NextResponse.json({ error: `Could not fetch URL: ${msg}` }, { status: 500 });
+  }
+}

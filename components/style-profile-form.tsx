@@ -66,7 +66,7 @@ export function StyleProfileForm({ profile, email }: { profile: Profile; email: 
           <Num name="hips" label="Hip (cm)" ph="96" />
           <Num name="high_hip" label="High hip (cm)" ph="90" />
           <Drop name="top_size" label="Top size" options={TOP_SIZES} />
-          <Drop name="pants_size" label="Pants size" options={PANTS_SIZES} />
+          <Drop name="pants_size" label="Pants size (US waist)" options={PANTS_SIZES} />
           <Drop name="shoe_size" label="Shoe size (EU)" options={SHOE_SIZES} />
           <Num name="feet_length_cm" label="Feet length (cm)" ph="24" />
           <div className="md:col-span-2">

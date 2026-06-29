@@ -17,6 +17,8 @@ export interface Registry {
   title: string;
   event_date: string | null;
   note: string | null;
+  shipping_address: string | null;
+  show_address: boolean;
   created_at: string;
 }
 
@@ -38,13 +40,14 @@ export interface RegistryItem {
 
 /** URL-safe slug from a title plus a short random suffix for uniqueness. */
 export function makeSlug(title: string): string {
-  const base = title
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .slice(0, 40) || "registry";
+  const base =
+    title
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, 40) || "registry";
   const suffix = Math.random().toString(36).slice(2, 7);
   return `${base}-${suffix}`;
 }

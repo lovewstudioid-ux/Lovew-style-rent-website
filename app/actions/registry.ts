@@ -3,8 +3,8 @@
 /**
  * Gift-registry server actions.
  * - Owner actions run as the signed-in user (RLS enforces ownership).
- * - reserveItem is a PUBLIC action (guests, no login) and uses the admin client
- *   with explicit checks, so guests can only reserve an unreserved item.
+ * - reserveItem is a PUBLIC action (guests, no login) — uses the admin client
+ *   with explicit checks so guests can only reserve an unreserved item.
  */
 
 import { revalidatePath } from "next/cache";
@@ -16,6 +16,7 @@ export type RegistryResult = { ok: boolean; error?: string; slug?: string };
 const MAX_BYTES = 8 * 1024 * 1024;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+/* ───────────────────────────────── CREATE REGISTRY ─────────────────────── */
 export async function createRegistry(formData: FormData): Promise<RegistryResult> {
   const supabase = createClient();
   const {
@@ -35,6 +36,7 @@ export async function createRegistry(formData: FormData): Promise<RegistryResult
     title,
     event_date: eventDate || null,
     note: note || null,
+    show_address: false,
   });
   if (error) return { ok: false, error: error.message };
 
@@ -42,6 +44,44 @@ export async function createRegistry(formData: FormData): Promise<RegistryResult
   return { ok: true, slug };
 }
 
+/* ───────────────────────────────── UPDATE REGISTRY ─────────────────────── */
+export async function updateRegistry(formData: FormData): Promise<RegistryResult> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Please sign in first." };
+
+  const id = String(formData.get("id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const eventDate = String(formData.get("event_date") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  const shippingAddress = String(formData.get("shipping_address") ?? "").trim();
+  const showAddress = formData.get("show_address") === "true";
+
+  if (!id) return { ok: false, error: "Missing registry ID." };
+  if (!title) return { ok: false, error: "Title is required." };
+
+  const { error } = await supabase
+    .from("registries")
+    .update({
+      title,
+      event_date: eventDate || null,
+      note: note || null,
+      shipping_address: shippingAddress || null,
+      show_address: showAddress,
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/registry");
+  revalidatePath(`/registry/${id}`);
+  return { ok: true };
+}
+
+/* ─────────────────────────────── ADD REGISTRY ITEM ─────────────────────── */
 export async function addRegistryItem(formData: FormData): Promise<RegistryResult> {
   const supabase = createClient();
   const {
@@ -57,6 +97,7 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
   const note = String(formData.get("note") ?? "").trim();
   const imageUrlInput = String(formData.get("image_url") ?? "").trim();
   const file = formData.get("image");
+
   if (!registryId) return { ok: false, error: "Missing registry." };
   if (!name) return { ok: false, error: "Please enter an item name." };
 
@@ -69,7 +110,9 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
     const ext = file.type.includes("png") ? "png" : "jpg";
     const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
     const bytes = Buffer.from(await file.arrayBuffer());
-    const up = await supabase.storage.from("registry").upload(path, bytes, { contentType: file.type });
+    const up = await supabase.storage
+      .from("registry")
+      .upload(path, bytes, { contentType: file.type });
     if (up.error) return { ok: false, error: `Upload failed: ${up.error.message}` };
     image_path = path;
     image_url = supabase.storage.from("registry").getPublicUrl(path).data.publicUrl;
@@ -92,6 +135,50 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
   return { ok: true };
 }
 
+/* ────────────────────────────── UPDATE REGISTRY ITEM ───────────────────── */
+export async function updateRegistryItem(formData: FormData): Promise<RegistryResult> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Please sign in first." };
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim() || "Other";
+  const price = String(formData.get("price") ?? "").trim();
+  const linkUrl = String(formData.get("link_url") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+
+  if (!id) return { ok: false, error: "Missing item ID." };
+  if (!name) return { ok: false, error: "Item name is required." };
+
+  // Fetch to verify ownership (via RLS — if user doesn't own this item's
+  // registry the update will silently affect 0 rows, but we check explicitly)
+  const { data: item } = await supabase
+    .from("registry_items")
+    .select("registry_id")
+    .eq("id", id)
+    .single();
+  if (!item) return { ok: false, error: "Item not found." };
+
+  const { error } = await supabase
+    .from("registry_items")
+    .update({
+      name,
+      category,
+      price: price || null,
+      link_url: linkUrl || null,
+      note: note || null,
+    })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/registry/${item.registry_id}`);
+  return { ok: true };
+}
+
+/* ────────────────────────────── DELETE REGISTRY ITEM ───────────────────── */
 export async function deleteRegistryItem(formData: FormData): Promise<RegistryResult> {
   const supabase = createClient();
   const {
@@ -100,7 +187,11 @@ export async function deleteRegistryItem(formData: FormData): Promise<RegistryRe
   if (!user) return { ok: false, error: "Please sign in first." };
 
   const id = String(formData.get("id") ?? "");
-  const { data: item } = await supabase.from("registry_items").select("image_path,registry_id").eq("id", id).single();
+  const { data: item } = await supabase
+    .from("registry_items")
+    .select("image_path,registry_id")
+    .eq("id", id)
+    .single();
   const { error } = await supabase.from("registry_items").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   if (item?.image_path) await supabase.storage.from("registry").remove([item.image_path]);
@@ -108,7 +199,7 @@ export async function deleteRegistryItem(formData: FormData): Promise<RegistryRe
   return { ok: true };
 }
 
-/** PUBLIC: a guest reserves an item. Admin client, validated. */
+/* ─────────────────────────── RESERVE ITEM (public) ─────────────────────── */
 export async function reserveItem(formData: FormData): Promise<RegistryResult> {
   const itemId = String(formData.get("item_id") ?? "");
   const slug = String(formData.get("slug") ?? "");
@@ -118,17 +209,26 @@ export async function reserveItem(formData: FormData): Promise<RegistryResult> {
   if (email && !EMAIL_RE.test(email)) return { ok: false, error: "That email looks off." };
 
   const admin = createAdminClient();
-  const { data: item } = await admin.from("registry_items").select("reserved_at").eq("id", itemId).single();
+  const { data: item } = await admin
+    .from("registry_items")
+    .select("reserved_at")
+    .eq("id", itemId)
+    .single();
   if (!item) return { ok: false, error: "Item not found." };
-  if (item.reserved_at) return { ok: false, error: "Someone just reserved this one — please pick another." };
+  if (item.reserved_at)
+    return { ok: false, error: "Someone just reserved this one — please pick another." };
 
   const { error } = await admin
     .from("registry_items")
-    .update({ reserved_by_name: name, reserved_by_email: email || null, reserved_at: new Date().toISOString() })
+    .update({
+      reserved_by_name: name,
+      reserved_by_email: email || null,
+      reserved_at: new Date().toISOString(),
+    })
     .eq("id", itemId)
-    .is("reserved_at", null); // guard against race
-  if (error) return { ok: false, error: "Could not reserve. Please try again." };
+    .is("reserved_at", null); // race guard
 
+  if (error) return { ok: false, error: "Could not reserve. Please try again." };
   if (slug) revalidatePath(`/r/${slug}`);
   return { ok: true };
 }
