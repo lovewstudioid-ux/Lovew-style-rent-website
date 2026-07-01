@@ -78,13 +78,13 @@ export function RegistryPublic({ registry, items }: { registry: Registry; items:
             const reserved = Boolean(it.reserved_at) || doneId === it.id;
             return (
               <div key={it.id} className="flex flex-col">
-                <div className={`relative aspect-[3/4] overflow-hidden bg-[#f1eee9] ${reserved ? "opacity-60" : ""}`}>
+                <div className={`relative aspect-square overflow-hidden border border-ink/8 bg-white ${reserved ? "opacity-60" : ""}`}>
                   {it.image_url && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={it.image_url}
                       alt={it.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain p-2.5"
                       loading="lazy"
                     />
                   )}

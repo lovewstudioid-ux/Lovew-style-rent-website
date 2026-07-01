@@ -486,10 +486,10 @@ export function RegistryItemManager({
             {items.map((it) => (
               <React.Fragment key={it.id}>
                 <div className="group">
-                  <div className="relative aspect-[3/4] overflow-hidden bg-[#f1eee9]">
+                  <div className="relative aspect-square overflow-hidden border border-ink/8 bg-white">
                     {it.image_url && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.image_url} alt={it.name} className="h-full w-full object-cover" loading="lazy" />
+                      <img src={it.image_url} alt={it.name} className="h-full w-full object-contain p-2.5" loading="lazy" />
                     )}
                     {/* Hover actions */}
                     <div className="absolute inset-x-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
