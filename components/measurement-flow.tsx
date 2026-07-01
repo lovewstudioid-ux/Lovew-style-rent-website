@@ -83,7 +83,7 @@ export function MeasurementFlow({ name, onBack, initialValues }: { name: string;
               <h2 className="mt-1 font-display text-2xl font-normal text-ink">{first}</h2>
             </div>
             {/* Optional photo */}
-            {photo ? (
+            {photo && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={photo}
@@ -91,15 +91,6 @@ export function MeasurementFlow({ name, onBack, initialValues }: { name: string;
                 crossOrigin="anonymous"
                 className="h-20 w-16 rounded-sm border border-ink/10 object-cover"
               />
-            ) : (
-              <button
-                type="button"
-                onClick={() => photoRef.current?.click()}
-                className="flex h-20 w-16 flex-shrink-0 flex-col items-center justify-center gap-1 border border-dashed border-ink/20 bg-[#faf8f5] text-center text-[0.55rem] uppercase tracking-[0.1em] text-ink/40 transition-colors hover:border-wine hover:text-wine"
-              >
-                <span className="text-lg">＋</span>
-                Add photo
-              </button>
             )}
           </div>
 
@@ -144,11 +135,13 @@ export function MeasurementFlow({ name, onBack, initialValues }: { name: string;
           onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)}
         />
 
-        {!photo && (
-          <p className="mt-2 text-center text-[0.68rem] text-ink/40">
-            Tap <span className="text-ink/60">+ Add photo</span> on the card to add your picture
-          </p>
-        )}
+        <button
+          type="button"
+          onClick={() => photoRef.current?.click()}
+          className="mt-2 w-full text-center text-[0.68rem] uppercase tracking-[0.14em] text-ink/40 hover:text-wine"
+        >
+          {photo ? "Change photo" : "+ Add photo (optional)"}
+        </button>
 
         {/* Export buttons */}
         <div className="mt-4 grid grid-cols-3 gap-2">
