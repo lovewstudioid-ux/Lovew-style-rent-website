@@ -127,7 +127,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (id) await supabase.from("style_id_leads").update({ status: "done" }).eq("id", id);
-    return NextResponse.json({ status: "done", analysis });
+
+    // Auto-save result so it persists for the user
+    const slug = Math.random().toString(36).slice(2, 10);
+    let resultPhotoUrl: string | null = null;
+    const ext = selfie.type.includes("png") ? "png" : "jpg";
+    const up = await supabase.storage.from("style-id-public").upload(`${slug}.${ext}`, bytes, { contentType: selfie.type || "image/jpeg", upsert: true });
+    if (!up.error) resultPhotoUrl = supabase.storage.from("style-id-public").getPublicUrl(`${slug}.${ext}`).data.publicUrl;
+    await supabase.from("style_id_results").insert({ slug, name, analysis, photo_url: resultPhotoUrl, user_id: user.id });
+
+    return NextResponse.json({ status: "done", analysis, slug });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Generation failed.";
     return NextResponse.json({ error: message }, { status: 500 });

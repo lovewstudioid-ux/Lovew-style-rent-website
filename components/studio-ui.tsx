@@ -28,7 +28,6 @@ export function Label({ children, className = "" }: { children: React.ReactNode;
 /* ─── Free tools list (also used in mobile nav) ─────────────────────────── */
 const FREE_TOOLS = [
   { name: "Style ID", href: "/discover" },
-  { name: "Style Profile", href: "/style-profile" },
   { name: "Wardrobe", href: "/wardrobe" },
   { name: "Gift Registry", href: "/registry" },
   { name: "Event Seating", href: "/event" },

@@ -5,6 +5,7 @@ import { Label } from "@/components/studio-ui";
 import { StyleIdExperience } from "@/components/style-id-experience";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
+import type { StyleAnalysis } from "@/lib/style-id-prompts";
 
 export const metadata = { title: "Style ID — Discover your colours & fit · LOVEW Studio" };
 export const dynamic = "force-dynamic";
@@ -22,6 +23,11 @@ export default async function DiscoverPage() {
   let email = "";
   let name = "";
   let phone = "";
+  let savedResult: StyleAnalysis | null = null;
+  let savedSlug = "";
+  let savedPhoto = "";
+  let savedMeasurements: Record<string, string | null> | null = null;
+
   if (env.supabaseConfigured) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -31,6 +37,27 @@ export default async function DiscoverPage() {
       const { data: profile } = await supabase.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
       name = (profile?.full_name as string) ?? "";
       phone = (profile?.phone as string) ?? "";
+
+      const [{ data: saved }, { data: measurements }] = await Promise.all([
+        supabase
+          .from("style_id_results")
+          .select("analysis, slug, photo_url")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("style_profiles")
+          .select("height_cm, weight_kg, bust, waist, hips, high_hip, top_size, pants_size, shoe_size, feet_length_cm")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+      if (saved) {
+        savedResult = saved.analysis as StyleAnalysis;
+        savedSlug = (saved.slug as string) ?? "";
+        savedPhoto = (saved.photo_url as string) ?? "";
+      }
+      if (measurements) savedMeasurements = measurements as Record<string, string | null>;
     }
   }
   return (
@@ -51,7 +78,7 @@ export default async function DiscoverPage() {
             </p>
             <div className="mt-11">
               <Link href="#start" className="inline-flex items-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine">
-                Start your Style ID →
+                {savedResult ? "View my Style ID →" : "Start your Style ID →"}
               </Link>
             </div>
           </div>
@@ -64,7 +91,7 @@ export default async function DiscoverPage() {
       {/* The Style ID tool */}
       <section id="start" className="scroll-mt-24 border-b border-ink/10 bg-[#faf8f5]">
         <div className="mx-auto max-w-editorial px-6 py-20 md:py-28">
-          <StyleIdExperience signedIn={signedIn} email={email} name={name} phone={phone} />
+          <StyleIdExperience signedIn={signedIn} email={email} name={name} phone={phone} savedResult={savedResult} savedSlug={savedSlug} savedPhoto={savedPhoto} savedMeasurements={savedMeasurements} />
         </div>
       </section>
 

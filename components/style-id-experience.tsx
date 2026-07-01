@@ -14,6 +14,8 @@ const INQUIRY = "https://tally.so/r/Gxd6ZL";
 
 type Phase = "loading" | "result" | "error";
 
+type Mode = "choose" | "guide" | "measure" | "saved";
+
 const inputCls = "w-full border border-ink/15 bg-white px-4 py-3 text-sm text-ink placeholder:text-ink/35 outline-none transition-colors focus:border-wine";
 const labCls = "mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/55";
 const btnCls = "inline-flex w-full items-center justify-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine disabled:opacity-60";
@@ -22,32 +24,78 @@ export function StyleIdExperience({
   signedIn,
   email,
   name,
+  savedResult,
+  savedSlug,
+  savedPhoto,
+  savedMeasurements,
 }: {
   signedIn: boolean;
   email: string;
   name: string;
   phone: string;
+  savedResult?: StyleAnalysis | null;
+  savedSlug?: string;
+  savedPhoto?: string;
+  savedMeasurements?: Record<string, string | null> | null;
 }) {
   const profileComplete = signedIn && Boolean(name);
   if (!signedIn) return <Shell><SignInStep /></Shell>;
   if (!profileComplete) return <Shell><ProfileStep email={email} /></Shell>;
-  return <Hub name={name} />;
+  return <Hub name={name} savedResult={savedResult} savedSlug={savedSlug} savedPhoto={savedPhoto} savedMeasurements={savedMeasurements} />;
 }
 
 /* ------------------------------------------------------------------- HUB */
-function Hub({ name }: { name: string }) {
-  const [mode, setMode] = useState<"choose" | "guide" | "measure">("choose");
+function Hub({ name, savedResult, savedSlug, savedPhoto, savedMeasurements }: {
+  name: string;
+  savedResult?: StyleAnalysis | null;
+  savedSlug?: string;
+  savedPhoto?: string;
+  savedMeasurements?: Record<string, string | null> | null;
+}) {
+  const [mode, setMode] = useState<Mode>(savedResult ? "saved" : "choose");
   const first = name.split(" ")[0] || "there";
+  const backFromMode = savedResult ? "saved" : "choose";
 
-  if (mode === "measure") return <MeasurementFlow name={name} onBack={() => setMode("choose")} />;
+  if (mode === "measure") return <MeasurementFlow name={name} onBack={() => setMode(backFromMode)} initialValues={savedMeasurements} />;
+
+  if (mode === "saved" && savedResult) {
+    return (
+      <div className="mx-auto w-full max-w-md">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[0.66rem] font-medium uppercase tracking-[0.3em] text-wine">Your Style ID</p>
+          <div className="flex gap-4">
+            <button type="button" onClick={() => setMode("measure")} className="text-[0.66rem] uppercase tracking-[0.16em] text-ink/45 hover:text-wine">
+              Body type & comcard
+            </button>
+            <button type="button" onClick={() => setMode("guide")} className="text-[0.66rem] uppercase tracking-[0.16em] text-ink/45 hover:text-wine">
+              Redo analysis
+            </button>
+          </div>
+        </div>
+        <StyleIdResult
+          analysis={savedResult}
+          photo={savedPhoto ?? ""}
+          name={first}
+          demo={false}
+          inquiry={INQUIRY}
+          savedSlug={savedSlug}
+          onReset={() => setMode("guide")}
+        />
+      </div>
+    );
+  }
+
   if (mode === "guide") {
     return (
       <Shell>
-        <button type="button" onClick={() => setMode("choose")} className="mb-3 text-[0.66rem] uppercase tracking-[0.18em] text-ink/45 hover:text-wine">← Style ID</button>
+        <button type="button" onClick={() => setMode(backFromMode)} className="mb-3 text-[0.66rem] uppercase tracking-[0.18em] text-ink/45 hover:text-wine">
+          {savedResult ? "← My Style ID" : "← Style ID"}
+        </button>
         <Generator firstName={first} />
       </Shell>
     );
   }
+
   return (
     <Shell>
       <p className="mb-1 text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">Hi {first}</p>
@@ -209,6 +257,7 @@ function Generator({ firstName }: { firstName: string }) {
   const [preview, setPreview] = useState("");
   const [analysis, setAnalysis] = useState<StyleAnalysis | null>(null);
   const [demo, setDemo] = useState(false);
+  const [savedSlug, setSavedSlug] = useState("");
   const [err, setErr] = useState("");
   const [fullFile, setFullFile] = useState<File | null>(null);
   const [fullPreview, setFullPreview] = useState("");
@@ -246,6 +295,7 @@ function Generator({ firstName }: { firstName: string }) {
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
       setDemo(data.status === "demo");
       setAnalysis(data.analysis as StyleAnalysis);
+      if (data.slug) setSavedSlug(data.slug as string);
       setPhase("result");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong.");
@@ -253,7 +303,7 @@ function Generator({ firstName }: { firstName: string }) {
     }
   }
 
-  function reset() { setPhase(null); setAnalysis(null); setDemo(false); setErr(""); }
+  function reset() { setPhase(null); setAnalysis(null); setDemo(false); setSavedSlug(""); setErr(""); }
 
   if (phase === "loading") {
     return (
@@ -265,7 +315,7 @@ function Generator({ firstName }: { firstName: string }) {
     );
   }
   if (phase === "result" && analysis) {
-    return <StyleIdResult analysis={analysis} photo={preview} name={firstName} demo={demo} inquiry={INQUIRY} onReset={reset} photoFile={file} />;
+    return <StyleIdResult analysis={analysis} photo={preview} name={firstName} demo={demo} inquiry={INQUIRY} onReset={reset} photoFile={file} savedSlug={savedSlug || undefined} />;
   }
   if (phase === "error") {
     return (

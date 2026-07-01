@@ -2,15 +2,15 @@
  * Body-type detection from bust / waist / hip measurements (cm).
  *
  * Uses absolute centimetre differences — the standard used by professional
- * stylists and fashion calculators — rather than pure ratios, which tend to
- * misclassify real body shapes.
+ * stylists and fashion calculators.
  *
- * Reference thresholds (cm):
- *   Apple         waist < 9 cm smaller than BOTH bust and hip
- *   Inverted ▲   bust ≥ hip + 5 cm
- *   Pear ▽       hip  ≥ bust + 5 cm
- *   Hourglass    bust ≈ hip (within 5 cm) AND waist ≥ 20 cm smaller than hip
- *   Rectangle    everything else
+ * Thresholds (cm):
+ *   Apple          waist < 9 cm smaller than BOTH bust and hip
+ *   Inverted ▲    bust ≥ hip + 7 cm
+ *   Pear ▽        hip  ≥ bust + 7 cm
+ *   Hourglass     bust ≈ hip (within 7 cm) AND waist ≥ 20 cm smaller than hip AND ≥ 18 cm smaller than bust
+ *   Soft Hourglass bust ≈ hip AND waist 12–19 cm smaller than hip
+ *   Rectangle     everything else
  */
 
 export interface BodyType {
@@ -27,40 +27,40 @@ export function computeBodyType(bust: string, waist: string, hip: string): BodyT
   const b = num(bust), w = num(waist), h = num(hip);
   if (!b || !w || !h) return null;
 
-  const waistVsHip  = h - w;  // how much smaller waist is than hip
-  const waistVsBust = b - w;  // how much smaller waist is than bust
-  const bustVsHip   = b - h;  // positive = bust wider, negative = hip wider
+  const waistVsHip  = h - w;
+  const waistVsBust = b - w;
+  const bustVsHip   = b - h;
 
-  // Apple / Round: waist is nearly as wide as both hip and bust
+  // Apple: waist nearly as wide as both hip and bust
   if (waistVsHip < 9 && waistVsBust < 9)
     return {
-      type: "Apple / Round",
+      type: "Apple",
       note: "Weight sits around the midsection — show off your legs and create long vertical lines.",
     };
 
-  // Inverted Triangle: bust is 5+ cm wider than hips
-  if (bustVsHip >= 5)
+  // Inverted Triangle: bust 7+ cm wider than hips
+  if (bustVsHip >= 7)
     return {
       type: "Inverted Triangle",
-      note: "Shoulders/bust are wider than hips — balance with fuller skirts and detailed bottoms.",
+      note: "Shoulders and bust are wider than hips — balance with fuller skirts and detailed bottoms.",
     };
 
-  // Pear / Triangle: hips are 5+ cm wider than bust
-  if (-bustVsHip >= 5)
+  // Pear: hips 7+ cm wider than bust
+  if (-bustVsHip >= 7)
     return {
-      type: "Pear / Triangle",
+      type: "Pear",
       note: "Hips are wider than shoulders — highlight your waist and draw the eye upward.",
     };
 
-  // Bust and hip are now within 5 cm of each other.
-  // Hourglass: waist is clearly defined (≥ 20 cm smaller than hip AND ≥ 18 cm smaller than bust)
+  // Bust and hip are within 7 cm of each other.
+  // Hourglass: waist clearly defined (≥ 20 cm smaller than hip AND ≥ 18 cm smaller than bust)
   if (waistVsHip >= 20 && waistVsBust >= 18)
     return {
       type: "Hourglass",
-      note: "Balanced bust & hips with a defined waist — emphasise the waist with fitted, wrap shapes.",
+      note: "Balanced bust and hips with a defined waist — emphasise it with fitted, wrap shapes.",
     };
 
-  // Soft Hourglass: bust ≈ hip but waist definition is moderate (12–19 cm)
+  // Soft Hourglass: balanced top/bottom, moderately defined waist (12–19 cm)
   if (waistVsHip >= 12 && waistVsBust >= 10)
     return {
       type: "Soft Hourglass",
