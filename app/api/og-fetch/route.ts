@@ -57,14 +57,55 @@ function extractImage(html: string): string {
   );
 }
 
-function extractPrice(html: string): string {
+function extractItemprop(html: string, prop: string): string {
+  const re1 = new RegExp(`<meta[^>]+itemprop=["']${prop}["'][^>]+content=["']([^"']+)["']`, "i");
+  const re2 = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+itemprop=["']${prop}["']`, "i");
+  return (html.match(re1) ?? html.match(re2))?.[1]?.trim() ?? "";
+}
+
+function extractCurrency(html: string): string {
+  return (
+    extractMeta(html, "product:price:currency") ||
+    extractMeta(html, "og:price:currency") ||
+    extractItemprop(html, "priceCurrency") ||
+    html.match(/"priceCurrency"\s*:\s*"([A-Z]{3})"/)?.[1] ||
+    ""
+  );
+}
+
+function rawPrice(html: string): string {
   return (
     extractMeta(html, "product:price:amount") ||
     extractMeta(html, "og:price:amount") ||
     extractMeta(html, "product:price") ||
     extractMeta(html, "og:price") ||
+    extractItemprop(html, "price") ||
+    // JSON-LD offers: "price":"250000" or "lowPrice":250000
+    html.match(/"(?:price|lowPrice)"\s*:\s*"?([\d]+(?:[.,]\d+)?)"?/i)?.[1] ||
     ""
   );
+}
+
+/** Return a display-ready price string, formatting bare numbers by currency. */
+function extractPrice(html: string): string {
+  const raw = rawPrice(html).trim();
+  if (!raw) return "";
+  // Already has a currency symbol/word — pass through.
+  if (/[^\d.,\s]/.test(raw)) return raw;
+
+  const currency = extractCurrency(html).toUpperCase();
+  const n = Number(raw.replace(/[.,](?=\d{3}\b)/g, "").replace(",", "."));
+  if (!Number.isFinite(n)) return raw;
+
+  if (currency === "IDR" || currency === "") {
+    // Indonesian Rupiah — thousands separated by dots, no decimals.
+    return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+  }
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
+  } catch {
+    return `${currency} ${n.toLocaleString("en-US")}`;
+  }
 }
 
 export async function GET(req: NextRequest) {

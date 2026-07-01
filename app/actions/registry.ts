@@ -16,6 +16,40 @@ export type RegistryResult = { ok: boolean; error?: string; slug?: string };
 const MAX_BYTES = 8 * 1024 * 1024;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+/**
+ * Download a remote product image (Shopee/Tokopedia/etc. block hotlinking, so
+ * we can't render their URL directly) and store it in our own bucket. Returns
+ * the stored path + public URL, or null if it couldn't be fetched.
+ */
+async function downloadAndStore(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  remoteUrl: string,
+): Promise<{ path: string; url: string } | null> {
+  try {
+    const res = await fetch(remoteUrl, {
+      headers: {
+        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        Accept: "image/avif,image/webp,image/png,image/jpeg,*/*",
+      },
+      signal: AbortSignal.timeout(8000),
+      redirect: "follow",
+    });
+    if (!res.ok) return null;
+    const type = (res.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim();
+    if (!type.startsWith("image/")) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength === 0 || buf.byteLength > MAX_BYTES) return null;
+    const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : type.includes("avif") ? "avif" : "jpg";
+    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+    const up = await supabase.storage.from("registry").upload(path, buf, { contentType: type });
+    if (up.error) return null;
+    return { path, url: supabase.storage.from("registry").getPublicUrl(path).data.publicUrl };
+  } catch {
+    return null;
+  }
+}
+
 /* ───────────────────────────────── CREATE REGISTRY ─────────────────────── */
 export async function createRegistry(formData: FormData): Promise<RegistryResult> {
   const supabase = createClient();
@@ -102,7 +136,7 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
   if (!name) return { ok: false, error: "Please enter an item name." };
 
   let image_path: string | null = null;
-  let image_url: string | null = imageUrlInput || null;
+  let image_url: string | null = null;
 
   if (file instanceof File && file.size > 0) {
     if (!file.type.startsWith("image/")) return { ok: false, error: "The file must be an image." };
@@ -116,6 +150,15 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
     if (up.error) return { ok: false, error: `Upload failed: ${up.error.message}` };
     image_path = path;
     image_url = supabase.storage.from("registry").getPublicUrl(path).data.publicUrl;
+  } else if (imageUrlInput) {
+    // Fetched from a product link — download & re-host so it doesn't break later.
+    const stored = await downloadAndStore(supabase, user.id, imageUrlInput);
+    if (stored) {
+      image_path = stored.path;
+      image_url = stored.url;
+    } else {
+      image_url = imageUrlInput; // fallback: keep the raw URL
+    }
   }
   if (!image_url) return { ok: false, error: "Add a photo or paste an image link." };
 

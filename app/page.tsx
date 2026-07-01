@@ -1,12 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { SERVICES, PHOTO, img } from "@/lib/studio";
-import { Label, StudioHeader, StudioFooter } from "@/components/studio-ui";
+import { Label, StudioFooter } from "@/components/studio-ui";
+import { StudioHeaderServer } from "@/components/studio-header-server";
 
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <StudioHeader />
+      <StudioHeaderServer />
 
       <main className="flex-1">
         {/* Short intro — wine band, no image */}
@@ -81,8 +82,7 @@ export default function HomePage() {
             <h2 className="mt-4 max-w-xl font-display text-3xl font-normal text-ink md:text-4xl">Make it yours — free to use.</h2>
             <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                { name: "Style ID", tagline: "Your colours, makeup & fit from one selfie", href: "/discover" },
-                { name: "Style Profile", tagline: "Save your measurements & body type", href: "/style-profile" },
+                { name: "Style ID", tagline: "Your colours, fit & body type from one selfie", href: "/discover" },
                 { name: "Wardrobe", tagline: "Build a gallery of your closet", href: "/wardrobe" },
                 { name: "Gift Registry", tagline: "A wishlist to share for any occasion", href: "/registry" },
                 { name: "Event Seating", tagline: "Digital seating chart with QR finder", href: "/event" },
