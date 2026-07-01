@@ -97,7 +97,8 @@ export function MeasurementFlow({ name, onBack, initialValues }: { name: string;
           {/* Body type */}
           {bodyType && (
             <>
-              <p className="font-display text-3xl font-normal text-wine">{bodyType.type}</p>
+              <p className="text-[0.6rem] font-medium uppercase tracking-[0.25em] text-ink/40">Body type</p>
+              <p className="mt-1 font-display text-3xl font-normal text-wine">{bodyType.type}</p>
               <p className="mt-1 text-[0.78rem] font-light leading-relaxed text-ink/60">{bodyType.note}</p>
             </>
           )}
