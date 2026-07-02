@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -59,20 +59,35 @@ function AddItemForm({
     setImageUrl("");
   }
 
-  async function handleFetch() {
-    if (!linkUrl.trim()) return;
+  const lastFetched = useRef("");
+
+  async function handleFetch(auto = false) {
+    const url = linkUrl.trim();
+    if (!url) return;
+    lastFetched.current = url;
     setFetching(true);
     setErr("");
-    const og = await fetchOg(linkUrl.trim());
+    const og = await fetchOg(url);
     setFetching(false);
     if (!og.title && !og.image) {
-      setErr("Couldn't auto-read this link — fill in the details manually.");
+      // Stay quiet on auto attempts — only warn when the user clicks Fetch.
+      if (!auto) setErr("Couldn't auto-read this link — fill in the details manually.");
       return;
     }
     if (og.title && !name) setName(og.title);
     if (og.image && !file) { setImageUrl(og.image); setPreview(""); }
     if (og.price && !price) setPrice(og.price);
   }
+
+  // Auto-fetch shortly after a full URL is pasted/typed — no button click needed.
+  useEffect(() => {
+    const url = linkUrl.trim();
+    if (!/^https?:\/\/.+\..+/.test(url)) return;
+    if (url === lastFetched.current) return;
+    const t = setTimeout(() => { void handleFetch(true); }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkUrl]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,7 +118,7 @@ function AddItemForm({
       {/* Left column */}
       <div className="space-y-4">
         <div>
-          <label className={labCls}>Shopping link <span className="text-ink/35">(paste first to auto-fill)</span></label>
+          <label className={labCls}>Shopping link <span className="text-ink/35">(paste — details fill in automatically)</span></label>
           <div className="flex gap-2">
             <input
               className={inputCls}
@@ -114,12 +129,13 @@ function AddItemForm({
             <button
               type="button"
               disabled={!linkUrl.trim() || fetching}
-              onClick={handleFetch}
+              onClick={() => handleFetch(false)}
               className="flex-shrink-0 border border-ink/20 px-4 py-3 text-[0.7rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine hover:text-wine disabled:opacity-40"
             >
-              {fetching ? "…" : "Fetch"}
+              {fetching ? "…" : "Refresh"}
             </button>
           </div>
+          {fetching && <p className="mt-1.5 text-[0.66rem] text-ink/45">Reading link…</p>}
         </div>
         <div>
           <label className={labCls}>Item name</label>
