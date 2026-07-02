@@ -20,10 +20,10 @@ const btnPrimary =
   "inline-flex w-full items-center justify-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine disabled:opacity-60";
 
 /* ─── OG fetch helper ────────────────────────────────────────────────────── */
-async function fetchOg(url: string): Promise<{ title?: string; image?: string; price?: string }> {
+async function fetchOg(url: string): Promise<{ title?: string; image?: string; price?: string; promoImage?: boolean }> {
   const res = await fetch(`/api/og-fetch?url=${encodeURIComponent(url)}`);
   if (!res.ok) return {};
-  return res.json() as Promise<{ title?: string; image?: string; price?: string }>;
+  return res.json() as Promise<{ title?: string; image?: string; price?: string; promoImage?: boolean }>;
 }
 
 /* ─── Add-item form ──────────────────────────────────────────────────────── */
@@ -57,10 +57,12 @@ function AddItemForm({
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setImageUrl("");
+    setPhotoHint(false);
   }
 
   const lastFetched = useRef("");
   const [priceHint, setPriceHint] = useState(false);
+  const [photoHint, setPhotoHint] = useState(false);
 
   async function handleFetch(auto = false) {
     const url = linkUrl.trim();
@@ -69,6 +71,7 @@ function AddItemForm({
     setFetching(true);
     setErr("");
     setPriceHint(false);
+    setPhotoHint(false);
     const og = await fetchOg(url);
     setFetching(false);
     if (!og.title && !og.image) {
@@ -81,6 +84,8 @@ function AddItemForm({
     if (og.price && !price) setPrice(og.price);
     // Some shops (Shopee especially) hide the price from links — nudge to add it.
     if (!og.price && !price) setPriceHint(true);
+    // Shopee shares only a promo card (price baked in) — ask for a clean photo.
+    if (og.promoImage && !file) setPhotoHint(true);
   }
 
   // Auto-fetch shortly after a full URL is pasted/typed — no button click needed.
@@ -183,7 +188,7 @@ function AddItemForm({
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="flex w-full items-center gap-4 border border-dashed border-ink/25 bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine"
+            className={`flex w-full items-center gap-4 border border-dashed bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine ${photoHint && !file ? "border-wine" : "border-ink/25"}`}
           >
             {preview ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -199,10 +204,15 @@ function AddItemForm({
                 ? <span className="text-ink">{file.name}</span>
                 : imageUrl
                   ? <span className="text-ink">Image fetched from link</span>
-                  : "Upload a photo, or use Fetch to auto-load"}
+                  : "Upload a photo, or paste a link to auto-load"}
               <span className="mt-0.5 block text-[0.7rem] text-ink/40">JPG/PNG, max 8 MB</span>
             </span>
           </button>
+          {photoHint && !file && (
+            <p className="mt-1.5 text-[0.66rem] text-wine">
+              Shopee only shares a promo image — upload a clean product photo for the best look 👆
+            </p>
+          )}
           {imageUrl && !file && (
             <p className="mt-1.5 text-[0.66rem] text-ink/45">
               Image fetched from product link.{" "}
