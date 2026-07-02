@@ -532,7 +532,7 @@ export function RegistryItemManager({
                     )}
                   </div>
                   <p className="mt-2.5 font-display text-base leading-tight text-ink">{it.name}</p>
-                  {it.price && <p className="text-[0.72rem] text-ink/50">{it.price}</p>}
+                  {it.price && <p className="mt-0.5 text-[0.82rem] font-light text-ink/70">{it.price}</p>}
                   {it.note && (
                     <p className="mt-0.5 text-[0.68rem] font-light italic text-ink/45">{it.note}</p>
                   )}

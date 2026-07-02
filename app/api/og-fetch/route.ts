@@ -48,11 +48,28 @@ function extractTitle(html: string): string {
   );
 }
 
+/** Clean up escaped/encoded URLs coming from JSON-LD or meta tags. */
+function cleanUrl(u: string): string {
+  return u.replace(/\\\//g, "/").replace(/&amp;/g, "&").trim();
+}
+
+/** Product image from JSON-LD — usually the clean product photo (no price card). */
+function extractJsonLdImage(html: string): string {
+  const m =
+    html.match(/"image"\s*:\s*"([^"]+)"/i) ||
+    html.match(/"image"\s*:\s*\[\s*"([^"]+)"/i) ||
+    html.match(/"image"\s*:\s*\{[^}]*?"url"\s*:\s*"([^"]+)"/i);
+  return m ? cleanUrl(m[1]) : "";
+}
+
 function extractImage(html: string): string {
   return (
-    extractMeta(html, "og:image") ||
-    extractName(html, "twitter:image") ||
-    extractName(html, "twitter:image:src") ||
+    // Prefer the structured-data product photo — cleaner than share cards
+    // (Shopee/marketplace og:image often has the price baked into the picture).
+    extractJsonLdImage(html) ||
+    cleanUrl(extractMeta(html, "og:image")) ||
+    cleanUrl(extractName(html, "twitter:image")) ||
+    cleanUrl(extractName(html, "twitter:image:src")) ||
     ""
   );
 }
