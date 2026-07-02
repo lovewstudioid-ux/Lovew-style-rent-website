@@ -7,6 +7,7 @@ import React from "react";
 import {
   addRegistryItem,
   deleteRegistryItem,
+  rehostRegistryImages,
   updateRegistry,
   updateRegistryItem,
 } from "@/app/actions/registry";
@@ -422,6 +423,13 @@ export function RegistryItemManager({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [fixMsg, setFixMsg] = useState("");
+
+  // Any item whose image still points off-site (not yet re-hosted by us).
+  const brokenCount = items.filter(
+    (it) => it.image_url && !it.image_url.includes("/storage/v1/object/public/registry/"),
+  ).length;
 
   async function copyShare() {
     try {
@@ -429,6 +437,22 @@ export function RegistryItemManager({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch { /* ignore */ }
+  }
+
+  async function fixImages() {
+    setFixing(true);
+    setFixMsg("");
+    const fd = new FormData();
+    fd.append("registry_id", registry.id);
+    const res = await rehostRegistryImages(fd);
+    setFixing(false);
+    if (!res.ok) { setFixMsg(res.error ?? "Could not fix images."); return; }
+    setFixMsg(
+      res.fixed
+        ? `Re-hosted ${res.fixed} image${res.fixed === 1 ? "" : "s"}.${res.failed ? ` ${res.failed} couldn't load — replace those manually.` : ""}`
+        : "No images needed fixing (or none could be recovered — upload those manually).",
+    );
+    router.refresh();
   }
 
   async function remove(id: string) {
@@ -487,6 +511,16 @@ export function RegistryItemManager({
             {items.length} item{items.length === 1 ? "" : "s"}
           </h2>
           <div className="flex gap-2">
+            {brokenCount > 0 && (
+              <button
+                type="button"
+                onClick={fixImages}
+                disabled={fixing}
+                className="border border-wine/40 px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-wine transition-colors hover:bg-wine hover:text-chiffon disabled:opacity-60"
+              >
+                {fixing ? "Fixing…" : `Fix images (${brokenCount})`}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => { setSettingsOpen((v) => !v); setAddOpen(false); }}
@@ -503,6 +537,7 @@ export function RegistryItemManager({
             </button>
           </div>
         </div>
+        {fixMsg && <p className="mt-3 text-[0.72rem] text-ink/55">{fixMsg}</p>}
 
         {/* Settings panel */}
         {settingsOpen && (
