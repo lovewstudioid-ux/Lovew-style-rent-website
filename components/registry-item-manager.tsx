@@ -60,6 +60,7 @@ function AddItemForm({
   }
 
   const lastFetched = useRef("");
+  const [priceHint, setPriceHint] = useState(false);
 
   async function handleFetch(auto = false) {
     const url = linkUrl.trim();
@@ -67,6 +68,7 @@ function AddItemForm({
     lastFetched.current = url;
     setFetching(true);
     setErr("");
+    setPriceHint(false);
     const og = await fetchOg(url);
     setFetching(false);
     if (!og.title && !og.image) {
@@ -77,6 +79,8 @@ function AddItemForm({
     if (og.title && !name) setName(og.title);
     if (og.image && !file) { setImageUrl(og.image); setPreview(""); }
     if (og.price && !price) setPrice(og.price);
+    // Some shops (Shopee especially) hide the price from links — nudge to add it.
+    if (!og.price && !price) setPriceHint(true);
   }
 
   // Auto-fetch shortly after a full URL is pasted/typed — no button click needed.
@@ -149,10 +153,22 @@ function AddItemForm({
             </select>
           </div>
           <div>
-            <label className={labCls}>Price <span className="text-ink/35">(opt)</span></label>
-            <input className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Rp 250.000" />
+            <label className={labCls}>
+              Price <span className="text-ink/35">(opt)</span>
+            </label>
+            <input
+              className={`${inputCls} ${priceHint ? "border-wine" : ""}`}
+              value={price}
+              onChange={(e) => { setPrice(e.target.value); if (e.target.value) setPriceHint(false); }}
+              placeholder="Rp 250.000"
+            />
           </div>
         </div>
+        {priceHint && !price && (
+          <p className="-mt-1 text-[0.66rem] text-wine">
+            This shop hides its price from links — please type it here 👆
+          </p>
+        )}
         <div>
           <label className={labCls}>Note for guests <span className="text-ink/35">(optional)</span></label>
           <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Any colour is fine, gift-wrap if possible" />
