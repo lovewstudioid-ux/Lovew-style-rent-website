@@ -133,6 +133,7 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
   const categoryId = String(formData.get("category_id") ?? "").trim();
   const qtyRaw = parseInt(String(formData.get("qty") ?? "1"), 10);
   const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
+  const isPriority = String(formData.get("is_priority") ?? "false") === "true";
   const note = String(formData.get("note") ?? "").trim();
   const imageUrlInput = String(formData.get("image_url") ?? "").trim();
   const file = formData.get("image");
@@ -181,6 +182,7 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
     qty,
     size: size || null,
     color: color || null,
+    is_priority: isPriority,
     note: note || null,
   });
   if (error) return { ok: false, error: error.message };
@@ -206,6 +208,7 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
   const categoryId = String(formData.get("category_id") ?? "").trim();
   const qtyRaw = parseInt(String(formData.get("qty") ?? "1"), 10);
   const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
+  const isPriority = String(formData.get("is_priority") ?? "false") === "true";
   const linkUrl = String(formData.get("link_url") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
 
@@ -231,6 +234,7 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
       qty,
       size: size || null,
       color: color || null,
+      is_priority: isPriority,
       link_url: linkUrl || null,
       note: note || null,
     })

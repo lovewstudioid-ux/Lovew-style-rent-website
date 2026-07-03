@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { reserveItem, requestAddress } from "@/app/actions/registry";
-import { ItemPhoto, ItemMeta } from "@/components/registry-item-manager";
+import { ItemPhoto, ItemMeta, Heart } from "@/components/registry-item-manager";
 import type { Registry, RegistryItem, RegistryCategory } from "@/lib/registry";
 
 export function RegistryPublic({
@@ -66,9 +66,15 @@ export function RegistryPublic({
   const inputCls = "w-full border border-ink/15 bg-white px-3 py-2 text-sm text-ink placeholder:text-ink/35 outline-none transition-colors focus:border-wine";
 
   const hasUncategorized = items.some((it) => !it.category_id);
-  const shown = items.filter((it) =>
-    filter === "all" ? true : filter === "none" ? !it.category_id : it.category_id === filter,
-  );
+  const hasPriority = items.some((it) => it.is_priority);
+  const shown = items
+    .filter((it) =>
+      filter === "all" ? true
+        : filter === "priority" ? it.is_priority
+        : filter === "none" ? !it.category_id
+        : it.category_id === filter,
+    )
+    .sort((a, b) => Number(b.is_priority) - Number(a.is_priority));
   const catName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "";
 
   return (
@@ -123,7 +129,7 @@ export function RegistryPublic({
       {/* Category filter */}
       {(categories.length > 0 || hasUncategorized) && items.length > 0 && (
         <div className="mt-10 flex flex-wrap justify-center gap-2">
-          {[{ id: "all", label: "All" }, ...categories.map((c) => ({ id: c.id, label: c.name })), ...(hasUncategorized ? [{ id: "none", label: "Other" }] : [])].map((c) => (
+          {[{ id: "all", label: "All" }, ...(hasPriority ? [{ id: "priority", label: "♥ Most wanted" }] : []), ...categories.map((c) => ({ id: c.id, label: c.name })), ...(hasUncategorized ? [{ id: "none", label: "Other" }] : [])].map((c) => (
             <button
               key={c.id}
               type="button"
@@ -147,6 +153,11 @@ export function RegistryPublic({
               <div key={it.id} className="flex flex-col">
                 <div className={`relative aspect-square overflow-hidden border border-ink/8 bg-white ${reserved ? "opacity-60" : ""}`}>
                   <ItemPhoto src={it.image_url} alt={it.name} />
+                  {it.is_priority && (
+                    <span title="Most wanted" className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-wine text-chiffon shadow">
+                      <Heart filled className="h-3 w-3" />
+                    </span>
+                  )}
                   {reserved && (
                     <span className="absolute left-2 top-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">Reserved</span>
                   )}

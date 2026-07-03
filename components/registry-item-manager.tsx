@@ -96,6 +96,28 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
+/* ─── Heart icon + "Most wanted" toggle ─────────────────────────────────── */
+export function Heart({ filled, className = "" }: { filled: boolean; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M20.8 5.1a5 5 0 0 0-7.1 0L12 6.8l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21l8.8-8.8a5 5 0 0 0 0-7.1z" />
+    </svg>
+  );
+}
+
+function PriorityToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 border px-4 py-3 text-[0.72rem] uppercase tracking-[0.12em] transition-colors ${on ? "border-wine bg-[#fdf6f7] text-wine" : "border-ink/15 text-ink/55 hover:border-wine"}`}
+    >
+      <Heart filled={on} className="h-4 w-4" />
+      {on ? "Most wanted" : "Mark as most wanted"}
+    </button>
+  );
+}
+
 /* ─── Category picker (existing + create new inline) ────────────────────── */
 function CategoryField({
   value,
@@ -220,6 +242,7 @@ function AddItemForm({
   const [price, setPrice] = useState("");
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
+  const [isPriority, setIsPriority] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [note, setNote] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -274,6 +297,7 @@ function AddItemForm({
     fd.append("price", price.trim());
     fd.append("size", size.trim());
     fd.append("color", color.trim());
+    fd.append("is_priority", String(isPriority));
     fd.append("link_url", linkUrl.trim());
     fd.append("note", note.trim());
     fd.append("image_url", imageUrl.trim());
@@ -282,7 +306,7 @@ function AddItemForm({
     setBusy(false);
     if (!res.ok) return setErr(res.error ?? "Could not add the item.");
     setName(""); setCategoryId(""); setQty("1"); setPrice(""); setSize(""); setColor("");
-    setLinkUrl(""); setNote(""); setImageUrl(""); setFile(null); setPreview("");
+    setIsPriority(false); setLinkUrl(""); setNote(""); setImageUrl(""); setFile(null); setPreview("");
     onSaved();
     router.refresh();
   }
@@ -305,6 +329,7 @@ function AddItemForm({
           qty={qty} setQty={setQty} currency={currency} setCurrency={setCurrency}
           price={price} setPrice={setPrice} size={size} setSize={setSize} color={color} setColor={setColor}
         />
+        <PriorityToggle on={isPriority} onClick={() => setIsPriority((v) => !v)} />
         <div>
           <label className={labCls}>Notes</label>
           <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Any colour is fine, gift-wrap if possible" />
@@ -370,6 +395,7 @@ function EditItemForm({
   const [price, setPrice] = useState(item.price ?? "");
   const [size, setSize] = useState(item.size ?? "");
   const [color, setColor] = useState(item.color ?? "");
+  const [isPriority, setIsPriority] = useState(item.is_priority);
   const [linkUrl, setLinkUrl] = useState(item.link_url ?? "");
   const [note, setNote] = useState(item.note ?? "");
 
@@ -386,6 +412,7 @@ function EditItemForm({
     fd.append("price", price.trim());
     fd.append("size", size.trim());
     fd.append("color", color.trim());
+    fd.append("is_priority", String(isPriority));
     fd.append("link_url", linkUrl.trim());
     fd.append("note", note.trim());
     const res = await updateRegistryItem(fd);
@@ -411,6 +438,9 @@ function EditItemForm({
             qty={qty} setQty={setQty} currency={currency} setCurrency={setCurrency}
             price={price} setPrice={setPrice} size={size} setSize={setSize} color={color} setColor={setColor}
           />
+        </div>
+        <div className="sm:col-span-2">
+          <PriorityToggle on={isPriority} onClick={() => setIsPriority((v) => !v)} />
         </div>
         <div>
           <label className={labCls}>Gift link</label>
@@ -645,9 +675,16 @@ export function RegistryItemManager({
 
   const catName = (id: string | null) => cats.find((c) => c.id === id)?.name ?? "";
   const hasUncategorized = items.some((it) => !it.category_id);
-  const shown = items.filter((it) =>
-    filter === "all" ? true : filter === "none" ? !it.category_id : it.category_id === filter,
-  );
+  const hasPriority = items.some((it) => it.is_priority);
+  const shown = items
+    .filter((it) =>
+      filter === "all" ? true
+        : filter === "priority" ? it.is_priority
+        : filter === "none" ? !it.category_id
+        : it.category_id === filter,
+    )
+    // "Most wanted" gifts float to the top (stable within each group).
+    .sort((a, b) => Number(b.is_priority) - Number(a.is_priority));
 
   return (
     <>
@@ -695,7 +732,7 @@ export function RegistryItemManager({
         {/* Filter bar */}
         {(cats.length > 0 || hasUncategorized) && items.length > 0 && (
           <div className="mt-8 flex flex-wrap gap-2">
-            {[{ id: "all", label: "All" }, ...cats.map((c) => ({ id: c.id, label: c.is_public ? c.name : `${c.name} · private` })), ...(hasUncategorized ? [{ id: "none", label: "Uncategorized" }] : [])].map((c) => (
+            {[{ id: "all", label: "All" }, ...(hasPriority ? [{ id: "priority", label: "♥ Most wanted" }] : []), ...cats.map((c) => ({ id: c.id, label: c.is_public ? c.name : `${c.name} · private` })), ...(hasUncategorized ? [{ id: "none", label: "Uncategorized" }] : [])].map((c) => (
               <button
                 key={c.id}
                 type="button"
@@ -742,8 +779,13 @@ export function RegistryItemManager({
                         </>
                       )}
                     </div>
+                    {it.is_priority && (
+                      <span title="Most wanted" className="absolute left-2 bottom-2 flex h-6 w-6 items-center justify-center rounded-full bg-wine text-chiffon shadow">
+                        <Heart filled className="h-3 w-3" />
+                      </span>
+                    )}
                     {it.reserved_at && (
-                      <span className="absolute left-2 bottom-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">Reserved</span>
+                      <span className="absolute right-2 bottom-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">Reserved</span>
                     )}
                   </div>
                   {it.category_id && (

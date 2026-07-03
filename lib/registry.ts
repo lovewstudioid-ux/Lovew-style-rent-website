@@ -61,6 +61,7 @@ export interface RegistryItem {
   qty: number;
   size: string | null;
   color: string | null;
+  is_priority: boolean;
   note: string | null;
   reserved_by_name: string | null;
   reserved_by_email: string | null;
