@@ -3,7 +3,7 @@ import Link from "next/link";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { RegistryPublic } from "@/components/registry-public";
-import type { Registry, RegistryItem } from "@/lib/registry";
+import type { Registry, RegistryItem, RegistryCategory } from "@/lib/registry";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +21,20 @@ export default async function PublicRegistryPage({ params }: { params: { slug: s
   const { data: registry } = await supabase.from("registries").select("*").eq("slug", params.slug).single();
   if (!registry) notFound();
 
-  const { data: items } = await supabase
-    .from("registry_items")
-    .select("*")
-    .eq("registry_id", (registry as Registry).id)
-    .order("created_at", { ascending: false });
+  const registryId = (registry as Registry).id;
+  const [{ data: itemsRaw }, { data: catsRaw }] = await Promise.all([
+    supabase.from("registry_items").select("*").eq("registry_id", registryId).order("created_at", { ascending: false }),
+    supabase.from("registry_categories").select("*").eq("registry_id", registryId).order("created_at", { ascending: true }),
+  ]);
+
+  const allCats = (catsRaw ?? []) as RegistryCategory[];
+  // Guests only see public categories, and only items that are uncategorized
+  // or belong to a public category (private categories stay hidden).
+  const publicCats = allCats.filter((c) => c.is_public);
+  const privateIds = new Set(allCats.filter((c) => !c.is_public).map((c) => c.id));
+  const items = ((itemsRaw ?? []) as RegistryItem[]).filter(
+    (it) => !it.category_id || !privateIds.has(it.category_id),
+  );
 
   return (
     <div className="min-h-screen bg-white">
@@ -39,7 +48,8 @@ export default async function PublicRegistryPage({ params }: { params: { slug: s
       </header>
       <RegistryPublic
         registry={registry as Registry}
-        items={(items ?? []) as RegistryItem[]}
+        items={items}
+        categories={publicCats}
       />
     </div>
   );

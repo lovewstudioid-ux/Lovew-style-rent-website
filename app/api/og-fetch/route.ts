@@ -40,12 +40,22 @@ function extractName(html: string, property: string): string {
   return (html.match(re1) ?? html.match(re2))?.[1]?.trim() ?? "";
 }
 
+/** Trim marketplace boilerplate so the name is just the product. */
+function cleanTitle(t: string): string {
+  return t
+    // Indonesian "Jual " (for sale) / "Beli " (buy) prefixes.
+    .replace(/^\s*(jual|beli)\s+/i, "")
+    // "… | Shopee Indonesia", "… - Tokopedia", "… | Lazada", etc.
+    .replace(/\s*[|\-–—]\s*(shopee|tokopedia|lazada|blibli|bukalapak|zalora|tiktok\s*shop)[^|–—-]*$/i, "")
+    .trim();
+}
+
 function extractTitle(html: string): string {
-  return (
+  const raw =
     extractMeta(html, "og:title") ||
     extractName(html, "twitter:title") ||
-    (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? "")
-  );
+    (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? "");
+  return cleanTitle(raw);
 }
 
 /** Clean up escaped/encoded URLs coming from JSON-LD or meta tags. */

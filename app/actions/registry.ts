@@ -125,9 +125,14 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
 
   const registryId = String(formData.get("registry_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
-  const category = String(formData.get("category") ?? "").trim() || "Other";
   const linkUrl = String(formData.get("link_url") ?? "").trim();
   const price = String(formData.get("price") ?? "").trim();
+  const currency = String(formData.get("currency") ?? "").trim();
+  const size = String(formData.get("size") ?? "").trim();
+  const color = String(formData.get("color") ?? "").trim();
+  const categoryId = String(formData.get("category_id") ?? "").trim();
+  const qtyRaw = parseInt(String(formData.get("qty") ?? "1"), 10);
+  const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
   const note = String(formData.get("note") ?? "").trim();
   const imageUrlInput = String(formData.get("image_url") ?? "").trim();
   const file = formData.get("image");
@@ -166,11 +171,16 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
   const { error } = await supabase.from("registry_items").insert({
     registry_id: registryId,
     name,
-    category,
+    category: "Other", // legacy column kept for back-compat; category_id is used now
+    category_id: categoryId || null,
     image_path,
     image_url,
     link_url: linkUrl || null,
     price: price || null,
+    currency: currency || null,
+    qty,
+    size: size || null,
+    color: color || null,
     note: note || null,
   });
   if (error) return { ok: false, error: error.message };
@@ -189,8 +199,13 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
 
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
-  const category = String(formData.get("category") ?? "").trim() || "Other";
   const price = String(formData.get("price") ?? "").trim();
+  const currency = String(formData.get("currency") ?? "").trim();
+  const size = String(formData.get("size") ?? "").trim();
+  const color = String(formData.get("color") ?? "").trim();
+  const categoryId = String(formData.get("category_id") ?? "").trim();
+  const qtyRaw = parseInt(String(formData.get("qty") ?? "1"), 10);
+  const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
   const linkUrl = String(formData.get("link_url") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
 
@@ -210,8 +225,12 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
     .from("registry_items")
     .update({
       name,
-      category,
+      category_id: categoryId || null,
       price: price || null,
+      currency: currency || null,
+      qty,
+      size: size || null,
+      color: color || null,
       link_url: linkUrl || null,
       note: note || null,
     })
@@ -219,6 +238,89 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
 
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/registry/${item.registry_id}`);
+  return { ok: true };
+}
+
+/* ─────────────────────────────── CATEGORIES ────────────────────────────── */
+export async function createCategory(formData: FormData): Promise<RegistryResult & { id?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Please sign in first." };
+
+  const registryId = String(formData.get("registry_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const isPublic = String(formData.get("is_public") ?? "true") !== "false";
+  if (!registryId) return { ok: false, error: "Missing registry." };
+  if (!name) return { ok: false, error: "Please name the category." };
+
+  const { data, error } = await supabase
+    .from("registry_categories")
+    .insert({ registry_id: registryId, name, is_public: isPublic })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/registry/${registryId}`);
+  return { ok: true, id: data?.id as string };
+}
+
+export async function updateCategory(formData: FormData): Promise<RegistryResult> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Please sign in first." };
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const isPublic = String(formData.get("is_public") ?? "true") !== "false";
+  if (!id) return { ok: false, error: "Missing category." };
+
+  const { data: cat } = await supabase
+    .from("registry_categories").select("registry_id").eq("id", id).single();
+  if (!cat) return { ok: false, error: "Category not found." };
+
+  const patch: Record<string, unknown> = { is_public: isPublic };
+  if (name) patch.name = name;
+  const { error } = await supabase.from("registry_categories").update(patch).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/registry/${cat.registry_id}`);
+  return { ok: true };
+}
+
+export async function deleteCategory(formData: FormData): Promise<RegistryResult> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Please sign in first." };
+
+  const id = String(formData.get("id") ?? "");
+  const { data: cat } = await supabase
+    .from("registry_categories").select("registry_id").eq("id", id).single();
+  // Items keep existing (category_id set null via FK on delete).
+  const { error } = await supabase.from("registry_categories").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  if (cat?.registry_id) revalidatePath(`/registry/${cat.registry_id}`);
+  return { ok: true };
+}
+
+/* ─────────────────────── REQUEST ADDRESS (public) ──────────────────────── */
+export async function requestAddress(formData: FormData): Promise<RegistryResult> {
+  const registryId = String(formData.get("registry_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const name = String(formData.get("guest_name") ?? "").trim();
+  const email = String(formData.get("guest_email") ?? "").trim();
+  const message = String(formData.get("message") ?? "").trim();
+  if (!registryId || !name) return { ok: false, error: "Please enter your name." };
+  if (email && !EMAIL_RE.test(email)) return { ok: false, error: "That email looks off." };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("registry_address_requests").insert({
+    registry_id: registryId,
+    guest_name: name,
+    guest_email: email || null,
+    message: message || null,
+  });
+  if (error) return { ok: false, error: "Could not send your request." };
+  if (slug) revalidatePath(`/r/${slug}`);
   return { ok: true };
 }
 

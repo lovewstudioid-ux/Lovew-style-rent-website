@@ -1,14 +1,31 @@
-/** Gift registry — shared types, categories, slug helper. */
+/** Gift registry — shared types, currencies, slug + price helpers. */
 
-export const REGISTRY_CATEGORIES = [
-  "Fashion",
-  "Beauty",
-  "Home",
-  "Tech",
-  "Books",
-  "Experiences",
-  "Other",
+/** Currencies the owner can pick from. `symbol` is shown next to the amount. */
+export const CURRENCIES = [
+  { code: "IDR", symbol: "Rp", label: "IDR (Rp)" },
+  { code: "USD", symbol: "$", label: "USD ($)" },
+  { code: "EUR", symbol: "€", label: "EUR (€)" },
+  { code: "SGD", symbol: "S$", label: "SGD (S$)" },
+  { code: "MYR", symbol: "RM", label: "MYR (RM)" },
+  { code: "AUD", symbol: "A$", label: "AUD (A$)" },
+  { code: "GBP", symbol: "£", label: "GBP (£)" },
+  { code: "JPY", symbol: "¥", label: "JPY (¥)" },
 ] as const;
+
+export function currencySymbol(code: string | null): string {
+  return CURRENCIES.find((c) => c.code === code)?.symbol ?? "";
+}
+
+/** Display a price with its currency symbol, e.g. "Rp 250.000" or "$25". */
+export function formatPrice(price: string | null, currency: string | null): string {
+  if (!price) return "";
+  const p = price.trim();
+  if (!p) return "";
+  // If the stored value already contains a currency symbol/word, show as-is.
+  if (/[^\d.,\s]/.test(p)) return p;
+  const sym = currencySymbol(currency);
+  return sym ? `${sym} ${p}` : p;
+}
 
 export interface Registry {
   id: string;
@@ -22,19 +39,41 @@ export interface Registry {
   created_at: string;
 }
 
+export interface RegistryCategory {
+  id: string;
+  registry_id: string;
+  name: string;
+  is_public: boolean;
+  created_at: string;
+}
+
 export interface RegistryItem {
   id: string;
   registry_id: string;
   name: string;
   category: string;
+  category_id: string | null;
   image_url: string | null;
   image_path: string | null;
   link_url: string | null;
   price: string | null;
+  currency: string | null;
+  qty: number;
+  size: string | null;
+  color: string | null;
   note: string | null;
   reserved_by_name: string | null;
   reserved_by_email: string | null;
   reserved_at: string | null;
+  created_at: string;
+}
+
+export interface AddressRequest {
+  id: string;
+  registry_id: string;
+  guest_name: string;
+  guest_email: string | null;
+  message: string | null;
   created_at: string;
 }
 

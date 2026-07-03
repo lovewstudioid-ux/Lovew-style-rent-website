@@ -6,11 +6,21 @@ import { useRouter } from "next/navigation";
 import React from "react";
 import {
   addRegistryItem,
+  createCategory,
+  deleteCategory,
   deleteRegistryItem,
+  updateCategory,
   updateRegistry,
   updateRegistryItem,
 } from "@/app/actions/registry";
-import { REGISTRY_CATEGORIES, type Registry, type RegistryItem } from "@/lib/registry";
+import {
+  CURRENCIES,
+  formatPrice,
+  type AddressRequest,
+  type Registry,
+  type RegistryCategory,
+  type RegistryItem,
+} from "@/lib/registry";
 
 /* ─── shared styles ─────────────────────────────────────────────────────── */
 const inputCls =
@@ -19,7 +29,7 @@ const labCls = "mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/
 const btnPrimary =
   "inline-flex w-full items-center justify-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine disabled:opacity-60";
 
-/* ─── Placeholder for items without a photo ─────────────────────────────── */
+/* ─── Placeholder + photo (with graceful fallback) ──────────────────────── */
 export function ItemPlaceholder() {
   return (
     <div className="flex h-full w-full items-center justify-center bg-[#f6f3ee]">
@@ -33,7 +43,6 @@ export function ItemPlaceholder() {
   );
 }
 
-/** Item photo that gracefully falls back to the placeholder if it can't load. */
 export function ItemPhoto({ src, alt }: { src: string | null; alt: string }) {
   const [failed, setFailed] = useState(false);
   if (!src || failed) return <ItemPlaceholder />;
@@ -49,6 +58,22 @@ export function ItemPhoto({ src, alt }: { src: string | null; alt: string }) {
   );
 }
 
+/* ─── Item meta line (price · qty · size · color) ───────────────────────── */
+export function ItemMeta({ it }: { it: RegistryItem }) {
+  const priceStr = formatPrice(it.price, it.currency);
+  const bits = [
+    it.qty > 1 ? `Qty ${it.qty}` : null,
+    it.size ? `Size ${it.size}` : null,
+    it.color || null,
+  ].filter(Boolean);
+  return (
+    <>
+      {priceStr && <p className="mt-0.5 text-[0.82rem] font-light text-ink/70">{priceStr}</p>}
+      {bits.length > 0 && <p className="mt-0.5 text-[0.7rem] text-ink/45">{bits.join(" · ")}</p>}
+    </>
+  );
+}
+
 /* ─── OG fetch helper ────────────────────────────────────────────────────── */
 async function fetchOg(url: string): Promise<{ title?: string; image?: string; price?: string }> {
   const res = await fetch(`/api/og-fetch?url=${encodeURIComponent(url)}`);
@@ -56,12 +81,130 @@ async function fetchOg(url: string): Promise<{ title?: string; image?: string; p
   return res.json() as Promise<{ title?: string; image?: string; price?: string }>;
 }
 
+/* ─── Toggle switch ─────────────────────────────────────────────────────── */
+function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onClick}
+      className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${on ? "bg-wine" : "bg-ink/20"}`}
+    >
+      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
+    </button>
+  );
+}
+
+/* ─── Category picker (existing + create new inline) ────────────────────── */
+function CategoryField({
+  value,
+  onChange,
+  cats,
+  onCreate,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  cats: RegistryCategory[];
+  onCreate: (name: string, isPublic: boolean) => Promise<string | null>;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  async function create() {
+    if (!newName.trim()) return;
+    setBusy(true);
+    const id = await onCreate(newName.trim(), isPublic);
+    setBusy(false);
+    if (id) { onChange(id); setCreating(false); setNewName(""); setIsPublic(true); }
+  }
+
+  return (
+    <div>
+      <label className={labCls}>Category <span className="text-ink/35">(optional)</span></label>
+      {!creating ? (
+        <select
+          className={inputCls}
+          value={value}
+          onChange={(e) => { e.target.value === "__new" ? setCreating(true) : onChange(e.target.value); }}
+        >
+          <option value="">Uncategorized</option>
+          {cats.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}{c.is_public ? "" : " (private)"}</option>
+          ))}
+          <option value="__new">＋ New category…</option>
+        </select>
+      ) : (
+        <div className="space-y-2 border border-wine/25 bg-[#fdf6f7] p-3">
+          <input className={inputCls} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Kitchen, Baby, Experiences" autoFocus />
+          <label className="flex cursor-pointer items-center gap-2 text-[0.72rem] text-ink/70">
+            <Toggle on={isPublic} onClick={() => setIsPublic((v) => !v)} />
+            {isPublic ? "Public — everyone with the link sees it" : "Private — only you can see it"}
+          </label>
+          <div className="flex gap-2">
+            <button type="button" disabled={busy} onClick={create} className="bg-ink px-4 py-2 text-[0.66rem] uppercase tracking-[0.14em] text-white transition-colors hover:bg-wine disabled:opacity-60">
+              {busy ? "…" : "Create"}
+            </button>
+            <button type="button" onClick={() => { setCreating(false); setNewName(""); }} className="border border-ink/20 px-4 py-2 text-[0.66rem] uppercase tracking-[0.14em] text-ink/60">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Qty / currency+price / size / color fields (shared) ───────────────── */
+function DetailFields({
+  qty, setQty, currency, setCurrency, price, setPrice, size, setSize, color, setColor,
+}: {
+  qty: string; setQty: (v: string) => void;
+  currency: string; setCurrency: (v: string) => void;
+  price: string; setPrice: (v: string) => void;
+  size: string; setSize: (v: string) => void;
+  color: string; setColor: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labCls}>Quantity</label>
+          <input type="number" min={1} className={inputCls} value={qty} onChange={(e) => setQty(e.target.value)} placeholder="1" />
+        </div>
+        <div>
+          <label className={labCls}>Price <span className="text-ink/35">(optional)</span></label>
+          <div className="flex gap-1.5">
+            <select className={`${inputCls} w-24 px-2`} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.symbol}</option>)}
+            </select>
+            <input className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="250.000" inputMode="decimal" />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labCls}>Size <span className="text-ink/35">(optional)</span></label>
+          <input className={inputCls} value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. M, 38, 500ml" />
+        </div>
+        <div>
+          <label className={labCls}>Color <span className="text-ink/35">(optional)</span></label>
+          <input className={inputCls} value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. Black, Sage" />
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ─── Add-item form ──────────────────────────────────────────────────────── */
 function AddItemForm({
-  registryId,
-  onSaved,
+  registryId, cats, onCreateCat, onSaved,
 }: {
   registryId: string;
+  cats: RegistryCategory[];
+  onCreateCat: (name: string, isPublic: boolean) => Promise<string | null>;
   onSaved: () => void;
 }) {
   const router = useRouter();
@@ -71,8 +214,12 @@ function AddItemForm({
   const [err, setErr] = useState("");
 
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("Other");
+  const [categoryId, setCategoryId] = useState("");
+  const [qty, setQty] = useState("1");
+  const [currency, setCurrency] = useState("IDR");
   const [price, setPrice] = useState("");
+  const [size, setSize] = useState("");
+  const [color, setColor] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [note, setNote] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -90,7 +237,6 @@ function AddItemForm({
   }
 
   const lastFetched = useRef("");
-
   async function handleFetch() {
     const url = linkUrl.trim();
     if (!url) return;
@@ -99,16 +245,12 @@ function AddItemForm({
     setErr("");
     const og = await fetchOg(url);
     setFetching(false);
-    if (!og.title && !og.image) {
-      // Nothing to auto-fill — that's fine, the fields are all optional.
-      return;
-    }
+    if (!og.title && !og.image) return; // all fields optional — no error
     if (og.title && !name) setName(og.title);
     if (og.image && !file) { setImageUrl(og.image); setPreview(""); }
     if (og.price && !price) setPrice(og.price);
   }
 
-  // Auto-fetch shortly after a full URL is pasted/typed — no button click needed.
   useEffect(() => {
     const url = linkUrl.trim();
     if (!/^https?:\/\/.+\..+/.test(url)) return;
@@ -126,8 +268,12 @@ function AddItemForm({
     const fd = new FormData();
     fd.append("registry_id", registryId);
     fd.append("name", name.trim());
-    fd.append("category", category);
+    fd.append("category_id", categoryId);
+    fd.append("qty", qty || "1");
+    fd.append("currency", currency);
     fd.append("price", price.trim());
+    fd.append("size", size.trim());
+    fd.append("color", color.trim());
     fd.append("link_url", linkUrl.trim());
     fd.append("note", note.trim());
     fd.append("image_url", imageUrl.trim());
@@ -135,8 +281,8 @@ function AddItemForm({
     const res = await addRegistryItem(fd);
     setBusy(false);
     if (!res.ok) return setErr(res.error ?? "Could not add the item.");
-    setName(""); setCategory("Other"); setPrice(""); setLinkUrl(""); setNote("");
-    setImageUrl(""); setFile(null); setPreview("");
+    setName(""); setCategoryId(""); setQty("1"); setPrice(""); setSize(""); setColor("");
+    setLinkUrl(""); setNote(""); setImageUrl(""); setFile(null); setPreview("");
     onSaved();
     router.refresh();
   }
@@ -147,37 +293,18 @@ function AddItemForm({
       <div className="space-y-4">
         <div>
           <label className={labCls}>Gift link <span className="text-ink/35">(optional — shop, Instagram, TikTok…)</span></label>
-          <input
-            className={inputCls}
-            value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            placeholder="Paste any link — details fill in automatically"
-          />
+          <input className={inputCls} value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="Paste any link — details fill in automatically" />
           {fetching && <p className="mt-1.5 text-[0.66rem] text-ink/45">Reading link…</p>}
         </div>
         <div>
           <label className={labCls}>Item name</label>
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ceramic dinner set" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labCls}>Category</label>
-            <select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value)}>
-              {REGISTRY_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labCls}>
-              Price <span className="text-ink/35">(optional)</span>
-            </label>
-            <input
-              className={inputCls}
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="Rp 250.000"
-            />
-          </div>
-        </div>
+        <CategoryField value={categoryId} onChange={setCategoryId} cats={cats} onCreate={onCreateCat} />
+        <DetailFields
+          qty={qty} setQty={setQty} currency={currency} setCurrency={setCurrency}
+          price={price} setPrice={setPrice} size={size} setSize={setSize} color={color} setColor={setColor}
+        />
         <div>
           <label className={labCls}>Note for guests <span className="text-ink/35">(optional)</span></label>
           <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Any colour is fine, gift-wrap if possible" />
@@ -189,11 +316,7 @@ function AddItemForm({
         <div>
           <label className={labCls}>Product photo <span className="text-ink/35">(optional)</span></label>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex w-full items-center gap-4 border border-dashed border-ink/25 bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine"
-          >
+          <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-4 border border-dashed border-ink/25 bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine">
             {preview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={preview} alt="" className="h-14 w-14 flex-shrink-0 rounded-sm object-cover" />
@@ -204,20 +327,14 @@ function AddItemForm({
               <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-sm bg-ink/5 text-xl text-ink/30">＋</span>
             )}
             <span className="text-sm text-ink/60">
-              {file
-                ? <span className="text-ink">{file.name}</span>
-                : imageUrl
-                  ? <span className="text-ink">Image fetched from link</span>
-                  : "Upload a photo, or paste a link to auto-load"}
+              {file ? <span className="text-ink">{file.name}</span> : imageUrl ? <span className="text-ink">Image fetched from link</span> : "Upload a photo, or paste a link to auto-load"}
               <span className="mt-0.5 block text-[0.7rem] text-ink/40">JPG/PNG, max 8 MB</span>
             </span>
           </button>
           {imageUrl && !file && (
             <p className="mt-1.5 text-[0.66rem] text-ink/45">
-              Image fetched from product link.{" "}
-              <button type="button" className="underline hover:text-wine" onClick={() => { setImageUrl(""); setPreview(""); }}>
-                Clear
-              </button>
+              Image fetched from link.{" "}
+              <button type="button" className="underline hover:text-wine" onClick={() => { setImageUrl(""); setPreview(""); }}>Clear</button>
             </p>
           )}
         </div>
@@ -225,17 +342,10 @@ function AddItemForm({
         <div className="flex items-center gap-3 text-[0.7rem] uppercase tracking-[0.14em] text-ink/35">
           <span className="h-px flex-1 bg-ink/10" /> or paste image URL <span className="h-px flex-1 bg-ink/10" />
         </div>
-        <input
-          className={inputCls}
-          value={imageUrl}
-          onChange={(e) => { setImageUrl(e.target.value); setFile(null); setPreview(""); }}
-          placeholder="https://…/image.jpg"
-        />
+        <input className={inputCls} value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setFile(null); setPreview(""); }} placeholder="https://…/image.jpg" />
 
         {err && <p className="text-xs text-wine">{err}</p>}
-        <button type="submit" disabled={busy} className={btnPrimary}>
-          {busy ? "Adding…" : "Add to registry →"}
-        </button>
+        <button type="submit" disabled={busy} className={btnPrimary}>{busy ? "Adding…" : "Add to registry →"}</button>
       </div>
     </form>
   );
@@ -243,18 +353,23 @@ function AddItemForm({
 
 /* ─── Inline item editor ─────────────────────────────────────────────────── */
 function EditItemForm({
-  item,
-  onClose,
+  item, cats, onCreateCat, onClose,
 }: {
   item: RegistryItem;
+  cats: RegistryCategory[];
+  onCreateCat: (name: string, isPublic: boolean) => Promise<string | null>;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [name, setName] = useState(item.name);
-  const [category, setCategory] = useState(item.category);
+  const [categoryId, setCategoryId] = useState(item.category_id ?? "");
+  const [qty, setQty] = useState(String(item.qty ?? 1));
+  const [currency, setCurrency] = useState(item.currency ?? "IDR");
   const [price, setPrice] = useState(item.price ?? "");
+  const [size, setSize] = useState(item.size ?? "");
+  const [color, setColor] = useState(item.color ?? "");
   const [linkUrl, setLinkUrl] = useState(item.link_url ?? "");
   const [note, setNote] = useState(item.note ?? "");
 
@@ -265,8 +380,12 @@ function EditItemForm({
     const fd = new FormData();
     fd.append("id", item.id);
     fd.append("name", name.trim());
-    fd.append("category", category);
+    fd.append("category_id", categoryId);
+    fd.append("qty", qty || "1");
+    fd.append("currency", currency);
     fd.append("price", price.trim());
+    fd.append("size", size.trim());
+    fd.append("color", color.trim());
     fd.append("link_url", linkUrl.trim());
     fd.append("note", note.trim());
     const res = await updateRegistryItem(fd);
@@ -284,18 +403,17 @@ function EditItemForm({
           <label className={labCls}>Name</label>
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-        <div>
-          <label className={labCls}>Category</label>
-          <select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {REGISTRY_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+        <div className="sm:col-span-2">
+          <CategoryField value={categoryId} onChange={setCategoryId} cats={cats} onCreate={onCreateCat} />
+        </div>
+        <div className="sm:col-span-2">
+          <DetailFields
+            qty={qty} setQty={setQty} currency={currency} setCurrency={setCurrency}
+            price={price} setPrice={setPrice} size={size} setSize={setSize} color={color} setColor={setColor}
+          />
         </div>
         <div>
-          <label className={labCls}>Price</label>
-          <input className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Rp 250.000" />
-        </div>
-        <div>
-          <label className={labCls}>Shopping link</label>
+          <label className={labCls}>Gift link</label>
           <input className={inputCls} value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" />
         </div>
         <div>
@@ -307,17 +425,23 @@ function EditItemForm({
           <button type="submit" disabled={busy} className="bg-ink px-6 py-2.5 text-xs uppercase tracking-[0.18em] text-white transition-colors hover:bg-wine disabled:opacity-60">
             {busy ? "Saving…" : "Save changes"}
           </button>
-          <button type="button" onClick={onClose} className="border border-ink/20 px-5 py-2.5 text-xs uppercase tracking-[0.18em] text-ink/60 hover:border-wine">
-            Cancel
-          </button>
+          <button type="button" onClick={onClose} className="border border-ink/20 px-5 py-2.5 text-xs uppercase tracking-[0.18em] text-ink/60 hover:border-wine">Cancel</button>
         </div>
       </form>
     </div>
   );
 }
 
-/* ─── Registry settings panel ────────────────────────────────────────────── */
-function SettingsPanel({ registry, onClose }: { registry: Registry; onClose: () => void }) {
+/* ─── Registry settings (details, address, categories, requests) ────────── */
+function SettingsPanel({
+  registry, cats, addressRequests, onCatsChange, onClose,
+}: {
+  registry: Registry;
+  cats: RegistryCategory[];
+  addressRequests: AddressRequest[];
+  onCatsChange: (next: RegistryCategory[]) => void;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -326,6 +450,11 @@ function SettingsPanel({ registry, onClose }: { registry: Registry; onClose: () 
   const [note, setNote] = useState(registry.note ?? "");
   const [address, setAddress] = useState(registry.shipping_address ?? "");
   const [showAddress, setShowAddress] = useState(registry.show_address);
+
+  // category management
+  const [newCat, setNewCat] = useState("");
+  const [newCatPublic, setNewCatPublic] = useState(true);
+  const [catBusy, setCatBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -345,10 +474,45 @@ function SettingsPanel({ registry, onClose }: { registry: Registry; onClose: () 
     onClose();
   }
 
+  async function addCat() {
+    if (!newCat.trim()) return;
+    setCatBusy(true);
+    const fd = new FormData();
+    fd.append("registry_id", registry.id);
+    fd.append("name", newCat.trim());
+    fd.append("is_public", String(newCatPublic));
+    const res = await createCategory(fd);
+    setCatBusy(false);
+    if (res.ok && res.id) {
+      onCatsChange([...cats, { id: res.id, registry_id: registry.id, name: newCat.trim(), is_public: newCatPublic, created_at: new Date().toISOString() }]);
+      setNewCat(""); setNewCatPublic(true);
+    }
+  }
+
+  async function toggleCat(c: RegistryCategory) {
+    const next = !c.is_public;
+    onCatsChange(cats.map((x) => (x.id === c.id ? { ...x, is_public: next } : x)));
+    const fd = new FormData();
+    fd.append("id", c.id);
+    fd.append("name", c.name);
+    fd.append("is_public", String(next));
+    await updateCategory(fd);
+    router.refresh();
+  }
+
+  async function removeCat(c: RegistryCategory) {
+    onCatsChange(cats.filter((x) => x.id !== c.id));
+    const fd = new FormData();
+    fd.append("id", c.id);
+    await deleteCategory(fd);
+    router.refresh();
+  }
+
   return (
-    <div className="mt-6 border border-ink/15 bg-white p-6 shadow-sm md:p-8">
-      <p className="mb-5 text-[0.7rem] font-medium uppercase tracking-[0.3em] text-ink/45">Registry settings</p>
+    <div className="mt-6 space-y-8 border border-ink/15 bg-white p-6 shadow-sm md:p-8">
+      {/* Details + address */}
       <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
+        <p className="md:col-span-2 text-[0.7rem] font-medium uppercase tracking-[0.3em] text-ink/45">Registry details</p>
         <div className="md:col-span-2">
           <label className={labCls}>Title</label>
           <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -363,73 +527,113 @@ function SettingsPanel({ registry, onClose }: { registry: Registry; onClose: () 
         </div>
         <div className="md:col-span-2">
           <label className={labCls}>Shipping address <span className="text-ink/35">(optional)</span></label>
-          <textarea
-            className={inputCls}
-            rows={2}
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Jl. … No. …, Jakarta Selatan 12345"
-          />
+          <textarea className={inputCls} rows={2} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Jl. … No. …, Jakarta Selatan 12345" />
         </div>
         <div className="md:col-span-2">
           <label className="flex cursor-pointer items-center gap-3">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showAddress}
-              onClick={() => setShowAddress((v) => !v)}
-              className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showAddress ? "bg-wine" : "bg-ink/20"}`}
-            >
-              <span
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${showAddress ? "translate-x-4" : "translate-x-0.5"}`}
-              />
-            </button>
+            <Toggle on={showAddress} onClick={() => setShowAddress((v) => !v)} />
             <span className="text-[0.78rem] text-ink/70">
-              {showAddress ? "Address visible to gift-givers" : "Address hidden from gift-givers"}
+              {showAddress ? "Address visible to gift-givers" : "Address hidden — givers can request it"}
             </span>
           </label>
           {!showAddress && address && (
-            <p className="mt-1.5 text-[0.66rem] text-ink/45">Address saved but only you can see it — toggle to share.</p>
+            <p className="mt-1.5 text-[0.66rem] text-ink/45">Hidden — guests see a &quot;Request address&quot; button, and their requests show below.</p>
           )}
         </div>
         {err && <p className="md:col-span-2 text-xs text-wine">{err}</p>}
         <div className="flex gap-2 md:col-span-2">
           <button type="submit" disabled={busy} className="bg-ink px-6 py-2.5 text-xs uppercase tracking-[0.18em] text-white transition-colors hover:bg-wine disabled:opacity-60">
-            {busy ? "Saving…" : "Save settings"}
+            {busy ? "Saving…" : "Save details"}
           </button>
-          <button type="button" onClick={onClose} className="border border-ink/20 px-5 py-2.5 text-xs uppercase tracking-[0.18em] text-ink/60 hover:border-wine">
-            Cancel
-          </button>
+          <button type="button" onClick={onClose} className="border border-ink/20 px-5 py-2.5 text-xs uppercase tracking-[0.18em] text-ink/60 hover:border-wine">Close</button>
         </div>
       </form>
+
+      {/* Categories */}
+      <div className="border-t border-ink/10 pt-6">
+        <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-ink/45">Categories</p>
+        <p className="mt-1 text-[0.72rem] text-ink/50">Organize your gifts. Private categories &amp; their items are hidden from guests.</p>
+        <div className="mt-4 space-y-2">
+          {cats.length === 0 && <p className="text-[0.78rem] text-ink/40">No categories yet.</p>}
+          {cats.map((c) => (
+            <div key={c.id} className="flex items-center gap-3 border border-ink/10 px-3 py-2">
+              <span className="flex-1 text-sm text-ink">{c.name}</span>
+              <span className="flex items-center gap-1.5 text-[0.66rem] uppercase tracking-[0.12em] text-ink/50">
+                <Toggle on={c.is_public} onClick={() => toggleCat(c)} />
+                {c.is_public ? "Public" : "Private"}
+              </span>
+              <button type="button" onClick={() => removeCat(c)} aria-label="Delete category" className="text-ink/40 hover:text-wine">✕</button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input className={`${inputCls} max-w-[220px]`} value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="New category name" />
+          <label className="flex cursor-pointer items-center gap-2 text-[0.7rem] text-ink/60">
+            <Toggle on={newCatPublic} onClick={() => setNewCatPublic((v) => !v)} />
+            {newCatPublic ? "Public" : "Private"}
+          </label>
+          <button type="button" disabled={catBusy || !newCat.trim()} onClick={addCat} className="border border-ink/20 px-5 py-2.5 text-[0.66rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine hover:text-wine disabled:opacity-40">
+            {catBusy ? "…" : "Add category"}
+          </button>
+        </div>
+      </div>
+
+      {/* Address requests */}
+      {addressRequests.length > 0 && (
+        <div className="border-t border-ink/10 pt-6">
+          <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-ink/45">Address requests ({addressRequests.length})</p>
+          <p className="mt-1 text-[0.72rem] text-ink/50">Guests who asked for your shipping address — reach out to share it privately.</p>
+          <div className="mt-4 space-y-2">
+            {addressRequests.map((r) => (
+              <div key={r.id} className="border border-ink/10 px-3 py-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-ink">{r.guest_name}</span>
+                  {r.guest_email && <a href={`mailto:${r.guest_email}`} className="text-[0.72rem] text-wine hover:underline">{r.guest_email}</a>}
+                </div>
+                {r.message && <p className="mt-0.5 text-[0.75rem] font-light italic text-ink/55">{r.message}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
 export function RegistryItemManager({
-  registry,
-  items,
-  shareUrl,
+  registry, items, categories, addressRequests, shareUrl,
 }: {
   registry: Registry;
   items: RegistryItem[];
+  categories: RegistryCategory[];
+  addressRequests: AddressRequest[];
   shareUrl: string;
 }) {
   const router = useRouter();
+  const [cats, setCats] = useState<RegistryCategory[]>(categories);
   const [addOpen, setAddOpen] = useState(items.length === 0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [filter, setFilter] = useState<string>("all"); // "all" | "none" | categoryId
 
-  async function copyShare() {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch { /* ignore */ }
+  async function onCreateCat(name: string, isPublic: boolean): Promise<string | null> {
+    const fd = new FormData();
+    fd.append("registry_id", registry.id);
+    fd.append("name", name);
+    fd.append("is_public", String(isPublic));
+    const res = await createCategory(fd);
+    if (res.ok && res.id) {
+      setCats((c) => [...c, { id: res.id!, registry_id: registry.id, name, is_public: isPublic, created_at: new Date().toISOString() }]);
+      return res.id;
+    }
+    return null;
   }
 
+  async function copyShare() {
+    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* ignore */ }
+  }
   async function remove(id: string) {
     const fd = new FormData();
     fd.append("id", id);
@@ -437,22 +641,22 @@ export function RegistryItemManager({
     router.refresh();
   }
 
+  const catName = (id: string | null) => cats.find((c) => c.id === id)?.name ?? "";
+  const hasUncategorized = items.some((it) => !it.category_id);
+  const shown = items.filter((it) =>
+    filter === "all" ? true : filter === "none" ? !it.category_id : it.category_id === filter,
+  );
+
   return (
     <>
       {/* Header */}
       <section className="bg-wine text-chiffon">
         <div className="mx-auto max-w-editorial px-6 py-12 text-center md:py-16">
-          <Link href="/registry" className="text-[0.66rem] uppercase tracking-[0.2em] text-chiffon/55 hover:text-chiffon">
-            ← All registries
-          </Link>
-          <h1 className="mt-4 font-display text-4xl font-normal text-chiffon md:text-5xl">
-            {registry.title}
-          </h1>
+          <Link href="/registry" className="text-[0.66rem] uppercase tracking-[0.2em] text-chiffon/55 hover:text-chiffon">← All registries</Link>
+          <h1 className="mt-4 font-display text-4xl font-normal text-chiffon md:text-5xl">{registry.title}</h1>
           {registry.event_date && (
             <p className="mt-2 text-xs uppercase tracking-[0.18em] text-chiffon/55">
-              {new Date(registry.event_date).toLocaleDateString(undefined, {
-                day: "numeric", month: "long", year: "numeric",
-              })}
+              {new Date(registry.event_date).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
             </p>
           )}
         </div>
@@ -463,57 +667,43 @@ export function RegistryItemManager({
         <div className="flex flex-wrap items-center gap-3 border border-ink/12 bg-[#faf8f5] px-5 py-4">
           <span className="text-[0.7rem] uppercase tracking-[0.16em] text-ink/45">Share link</span>
           <code className="min-w-0 flex-1 truncate text-sm text-ink/70">{shareUrl}</code>
-          <button
-            type="button"
-            onClick={copyShare}
-            className="bg-ink px-5 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-white transition-colors hover:bg-wine"
-          >
-            {copied ? "Copied ✓" : "Copy"}
-          </button>
-          <a
-            href={shareUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="border border-ink/20 px-5 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-ink transition-colors hover:border-wine hover:text-wine"
-          >
-            Preview
-          </a>
+          <button type="button" onClick={copyShare} className="bg-ink px-5 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-white transition-colors hover:bg-wine">{copied ? "Copied ✓" : "Copy"}</button>
+          <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="border border-ink/20 px-5 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-ink transition-colors hover:border-wine hover:text-wine">Preview</a>
         </div>
 
         {/* Toolbar */}
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-2xl text-ink">
-            {items.length} item{items.length === 1 ? "" : "s"}
-          </h2>
+          <h2 className="font-display text-2xl text-ink">{items.length} item{items.length === 1 ? "" : "s"}</h2>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => { setSettingsOpen((v) => !v); setAddOpen(false); }}
-              className="border border-ink/20 px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-ink/65 transition-colors hover:border-wine hover:text-wine"
-            >
-              Settings
-            </button>
-            <button
-              type="button"
-              onClick={() => { setAddOpen((v) => !v); setSettingsOpen(false); }}
-              className="bg-ink px-6 py-2.5 text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-wine"
-            >
-              {addOpen ? "Close" : "+ Add item"}
-            </button>
+            <button type="button" onClick={() => { setSettingsOpen((v) => !v); setAddOpen(false); }} className="border border-ink/20 px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-ink/65 transition-colors hover:border-wine hover:text-wine">Settings</button>
+            <button type="button" onClick={() => { setAddOpen((v) => !v); setSettingsOpen(false); }} className="bg-ink px-6 py-2.5 text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-wine">{addOpen ? "Close" : "+ Add item"}</button>
           </div>
         </div>
 
         {/* Settings panel */}
         {settingsOpen && (
-          <SettingsPanel registry={registry} onClose={() => setSettingsOpen(false)} />
+          <SettingsPanel registry={registry} cats={cats} addressRequests={addressRequests} onCatsChange={setCats} onClose={() => setSettingsOpen(false)} />
         )}
 
         {/* Add item form */}
         {addOpen && (
-          <AddItemForm
-            registryId={registry.id}
-            onSaved={() => setAddOpen(false)}
-          />
+          <AddItemForm registryId={registry.id} cats={cats} onCreateCat={onCreateCat} onSaved={() => setAddOpen(false)} />
+        )}
+
+        {/* Filter bar */}
+        {(cats.length > 0 || hasUncategorized) && items.length > 0 && (
+          <div className="mt-8 flex flex-wrap gap-2">
+            {[{ id: "all", label: "All" }, ...cats.map((c) => ({ id: c.id, label: c.is_public ? c.name : `${c.name} · private` })), ...(hasUncategorized ? [{ id: "none", label: "Uncategorized" }] : [])].map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setFilter(c.id)}
+                className={`border px-4 py-1.5 text-[0.7rem] uppercase tracking-[0.12em] transition-colors ${filter === c.id ? "border-wine bg-wine text-chiffon" : "border-ink/20 text-ink/60 hover:border-wine"}`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
         )}
 
         {/* Items grid */}
@@ -523,57 +713,36 @@ export function RegistryItemManager({
             <p className="mt-2 text-sm font-light text-ink/45">Add a few wishes, then share your link.</p>
           </div>
         ) : (
-          <div className="mt-10 grid grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-3 lg:grid-cols-4">
-            {items.map((it) => (
+          <div className="mt-8 grid grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-3 lg:grid-cols-4">
+            {shown.map((it) => (
               <React.Fragment key={it.id}>
                 <div className="group">
                   <div className="relative aspect-square overflow-hidden border border-ink/8 bg-white">
                     <ItemPhoto src={it.image_url} alt={it.name} />
-                    {/* Hover actions */}
                     <div className="absolute inset-x-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(editingId === it.id ? null : it.id)}
-                        className="flex h-7 items-center gap-1 rounded-sm bg-white/90 px-2 text-[0.6rem] uppercase tracking-[0.1em] text-ink/70 hover:text-wine"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => remove(it.id)}
-                        aria-label="Delete"
-                        className="ml-auto flex h-7 w-7 items-center justify-center bg-white/90 text-ink/60 hover:text-wine"
-                      >
-                        ✕
-                      </button>
+                      <button type="button" onClick={() => setEditingId(editingId === it.id ? null : it.id)} className="flex h-7 items-center gap-1 rounded-sm bg-white/90 px-2 text-[0.6rem] uppercase tracking-[0.1em] text-ink/70 hover:text-wine">Edit</button>
+                      <button type="button" onClick={() => remove(it.id)} aria-label="Delete" className="ml-auto flex h-7 w-7 items-center justify-center bg-white/90 text-ink/60 hover:text-wine">✕</button>
                     </div>
                     {it.reserved_at && (
-                      <span className="absolute left-2 bottom-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">
-                        Reserved
-                      </span>
+                      <span className="absolute left-2 bottom-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">Reserved</span>
                     )}
                   </div>
-                  <p className="mt-2.5 font-display text-base leading-tight text-ink">{it.name}</p>
-                  {it.price && <p className="mt-0.5 text-[0.82rem] font-light text-ink/70">{it.price}</p>}
-                  {it.note && (
-                    <p className="mt-0.5 text-[0.68rem] font-light italic text-ink/45">{it.note}</p>
+                  {it.category_id && (
+                    <p className="mt-2 text-[0.6rem] uppercase tracking-[0.14em] text-wine">{catName(it.category_id)}</p>
                   )}
+                  <p className="mt-1 font-display text-base leading-tight text-ink">{it.name}</p>
+                  <ItemMeta it={it} />
+                  {it.note && <p className="mt-0.5 text-[0.68rem] font-light italic text-ink/45">{it.note}</p>}
                   {it.link_url && (
-                    <a href={it.link_url} target="_blank" rel="noopener noreferrer" className="mt-0.5 block text-[0.66rem] uppercase tracking-[0.12em] text-ink/40 hover:text-wine">
-                      View product →
-                    </a>
+                    <a href={it.link_url} target="_blank" rel="noopener noreferrer" className="mt-0.5 block text-[0.66rem] uppercase tracking-[0.12em] text-ink/40 hover:text-wine">View link →</a>
                   )}
                   {it.reserved_by_name && (
-                    <p className="mt-0.5 text-[0.66rem] uppercase tracking-[0.12em] text-eucalyptus">
-                      by {it.reserved_by_name}
-                    </p>
+                    <p className="mt-0.5 text-[0.66rem] uppercase tracking-[0.12em] text-eucalyptus">by {it.reserved_by_name}</p>
                   )}
                 </div>
-
-                {/* Inline edit panel — spans full row */}
                 {editingId === it.id && (
                   <div className="col-span-full">
-                    <EditItemForm item={it} onClose={() => setEditingId(null)} />
+                    <EditItemForm item={it} cats={cats} onCreateCat={onCreateCat} onClose={() => setEditingId(null)} />
                   </div>
                 )}
               </React.Fragment>

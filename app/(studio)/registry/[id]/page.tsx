@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { MagicLinkGate } from "@/components/magic-link-gate";
 import { RegistryItemManager } from "@/components/registry-item-manager";
-import type { Registry, RegistryItem } from "@/lib/registry";
+import type { Registry, RegistryItem, RegistryCategory, AddressRequest } from "@/lib/registry";
 
 export const metadata = { title: "Manage registry · LOVEW Studio" };
 export const dynamic = "force-dynamic";
@@ -24,11 +24,11 @@ export default async function ManageRegistryPage({ params }: { params: { id: str
   const { data: registry } = await supabase.from("registries").select("*").eq("id", params.id).single();
   if (!registry || (registry as Registry).user_id !== user.id) notFound();
 
-  const { data: items } = await supabase
-    .from("registry_items")
-    .select("*")
-    .eq("registry_id", params.id)
-    .order("created_at", { ascending: false });
+  const [{ data: items }, { data: categories }, { data: requests }] = await Promise.all([
+    supabase.from("registry_items").select("*").eq("registry_id", params.id).order("created_at", { ascending: false }),
+    supabase.from("registry_categories").select("*").eq("registry_id", params.id).order("created_at", { ascending: true }),
+    supabase.from("registry_address_requests").select("*").eq("registry_id", params.id).order("created_at", { ascending: false }),
+  ]);
 
   const shareUrl = `${env.siteUrl}/r/${(registry as Registry).slug}`;
 
@@ -36,6 +36,8 @@ export default async function ManageRegistryPage({ params }: { params: { id: str
     <RegistryItemManager
       registry={registry as Registry}
       items={(items ?? []) as RegistryItem[]}
+      categories={(categories ?? []) as RegistryCategory[]}
+      addressRequests={(requests ?? []) as AddressRequest[]}
       shareUrl={shareUrl}
     />
   );
