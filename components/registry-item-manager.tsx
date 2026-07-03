@@ -20,11 +20,25 @@ const labCls = "mb-1.5 block text-[0.7rem] uppercase tracking-[0.14em] text-ink/
 const btnPrimary =
   "inline-flex w-full items-center justify-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine disabled:opacity-60";
 
+/* ─── Placeholder for items without a photo ─────────────────────────────── */
+export function ItemPlaceholder() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[#f6f3ee]">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 text-ink/25">
+        <rect x="3" y="8" width="18" height="4" rx="1" />
+        <path d="M12 8v13" />
+        <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+        <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+      </svg>
+    </div>
+  );
+}
+
 /* ─── OG fetch helper ────────────────────────────────────────────────────── */
-async function fetchOg(url: string): Promise<{ title?: string; image?: string; price?: string; promoImage?: boolean }> {
+async function fetchOg(url: string): Promise<{ title?: string; image?: string; price?: string }> {
   const res = await fetch(`/api/og-fetch?url=${encodeURIComponent(url)}`);
   if (!res.ok) return {};
-  return res.json() as Promise<{ title?: string; image?: string; price?: string; promoImage?: boolean }>;
+  return res.json() as Promise<{ title?: string; image?: string; price?: string }>;
 }
 
 /* ─── Add-item form ──────────────────────────────────────────────────────── */
@@ -58,12 +72,9 @@ function AddItemForm({
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setImageUrl("");
-    setPhotoHint(false);
   }
 
   const lastFetched = useRef("");
-  const [priceHint, setPriceHint] = useState(false);
-  const [photoHint, setPhotoHint] = useState(false);
 
   async function handleFetch(auto = false) {
     const url = linkUrl.trim();
@@ -71,22 +82,15 @@ function AddItemForm({
     lastFetched.current = url;
     setFetching(true);
     setErr("");
-    setPriceHint(false);
-    setPhotoHint(false);
     const og = await fetchOg(url);
     setFetching(false);
     if (!og.title && !og.image) {
-      // Stay quiet on auto attempts — only warn when the user clicks Fetch.
-      if (!auto) setErr("Couldn't auto-read this link — fill in the details manually.");
+      // Nothing to auto-fill — that's fine, the fields are all optional.
       return;
     }
     if (og.title && !name) setName(og.title);
     if (og.image && !file) { setImageUrl(og.image); setPreview(""); }
     if (og.price && !price) setPrice(og.price);
-    // Some shops (Shopee especially) hide the price from links — nudge to add it.
-    if (!og.price && !price) setPriceHint(true);
-    // Shopee shares only a promo card (price baked in) — ask for a clean photo.
-    if (og.promoImage && !file) setPhotoHint(true);
   }
 
   // Auto-fetch shortly after a full URL is pasted/typed — no button click needed.
@@ -102,7 +106,6 @@ function AddItemForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setErr("Please enter an item name.");
-    if (!file && !imageUrl.trim()) return setErr("Add a photo or paste an image link, or use Fetch to auto-load from the product URL.");
     setBusy(true);
     setErr("");
     const fd = new FormData();
@@ -128,13 +131,13 @@ function AddItemForm({
       {/* Left column */}
       <div className="space-y-4">
         <div>
-          <label className={labCls}>Shopping link <span className="text-ink/35">(paste — details fill in automatically)</span></label>
+          <label className={labCls}>Gift link <span className="text-ink/35">(optional — shop, Instagram, TikTok…)</span></label>
           <div className="flex gap-2">
             <input
               className={inputCls}
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="https://shopee.co.id/…"
+              placeholder="Paste any link — details fill in if available"
             />
             <button
               type="button"
@@ -160,21 +163,16 @@ function AddItemForm({
           </div>
           <div>
             <label className={labCls}>
-              Price <span className="text-ink/35">(opt)</span>
+              Price <span className="text-ink/35">(optional)</span>
             </label>
             <input
-              className={`${inputCls} ${priceHint ? "border-wine" : ""}`}
+              className={inputCls}
               value={price}
-              onChange={(e) => { setPrice(e.target.value); if (e.target.value) setPriceHint(false); }}
+              onChange={(e) => setPrice(e.target.value)}
               placeholder="Rp 250.000"
             />
           </div>
         </div>
-        {priceHint && !price && (
-          <p className="-mt-1 text-[0.66rem] text-wine">
-            This shop hides its price from links — please type it here 👆
-          </p>
-        )}
         <div>
           <label className={labCls}>Note for guests <span className="text-ink/35">(optional)</span></label>
           <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Any colour is fine, gift-wrap if possible" />
@@ -184,12 +182,12 @@ function AddItemForm({
       {/* Right column — photo */}
       <div className="space-y-4">
         <div>
-          <label className={labCls}>Product photo</label>
+          <label className={labCls}>Product photo <span className="text-ink/35">(optional)</span></label>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className={`flex w-full items-center gap-4 border border-dashed bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine ${photoHint && !file ? "border-wine" : "border-ink/25"}`}
+            className="flex w-full items-center gap-4 border border-dashed border-ink/25 bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine"
           >
             {preview ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -209,11 +207,6 @@ function AddItemForm({
               <span className="mt-0.5 block text-[0.7rem] text-ink/40">JPG/PNG, max 8 MB</span>
             </span>
           </button>
-          {photoHint && !file && (
-            <p className="mt-1.5 text-[0.66rem] text-wine">
-              Shopee only shares a promo image — upload a clean product photo for the best look 👆
-            </p>
-          )}
           {imageUrl && !file && (
             <p className="mt-1.5 text-[0.66rem] text-ink/45">
               Image fetched from product link.{" "}
@@ -564,9 +557,11 @@ export function RegistryItemManager({
               <React.Fragment key={it.id}>
                 <div className="group">
                   <div className="relative aspect-square overflow-hidden border border-ink/8 bg-white">
-                    {it.image_url && (
+                    {it.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={it.image_url} alt={it.name} className="h-full w-full object-contain p-2.5" loading="lazy" />
+                    ) : (
+                      <ItemPlaceholder />
                     )}
                     {/* Hover actions */}
                     <div className="absolute inset-x-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">

@@ -151,23 +151,14 @@ export async function GET(req: NextRequest) {
 
     const html = await res.text();
     const title = extractTitle(html);
-    const rawImage = extractImage(html);
+    const image = extractImage(html);
     const price = extractPrice(html);
 
-    // Shopee only shares a "promo-dim" composed card (product photo + price/stars
-    // baked in) — ugly in a clean frame. Drop it and flag so the UI asks for a
-    // real photo upload instead.
-    const promoImage = /promo-dim|promo_dim/i.test(rawImage);
-    const image = promoImage ? "" : rawImage;
-
-    // Nothing usable at all (no title AND image dropped/absent).
     if (!title && !image) {
       return NextResponse.json({ error: "No product info found for this URL" }, { status: 422 });
     }
 
-    // When title exists but the image was a dropped promo card, we still return
-    // the title (+ promoImage flag) so the name fills and the UI asks for a photo.
-    return NextResponse.json({ title, image, price, promoImage });
+    return NextResponse.json({ title, image, price });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "fetch failed";
     return NextResponse.json({ error: `Could not fetch URL: ${msg}` }, { status: 500 });

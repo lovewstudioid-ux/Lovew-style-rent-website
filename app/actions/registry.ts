@@ -160,7 +160,8 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
       image_url = imageUrlInput; // fallback: keep the raw URL
     }
   }
-  if (!image_url) return { ok: false, error: "Add a photo or paste an image link." };
+  // Photo is optional — an item can be just a name + link (e.g. an IG/TikTok
+  // reference where the giver picks the product themselves).
 
   const { error } = await supabase.from("registry_items").insert({
     registry_id: registryId,
