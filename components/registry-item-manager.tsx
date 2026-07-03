@@ -9,6 +9,7 @@ import {
   createCategory,
   deleteCategory,
   deleteRegistryItem,
+  togglePriority,
   updateCategory,
   updateRegistry,
   updateRegistryItem,
@@ -612,17 +613,29 @@ function SettingsPanel({
       {addressRequests.length > 0 && (
         <div className="border-t border-ink/10 pt-6">
           <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-ink/45">Address requests ({addressRequests.length})</p>
-          <p className="mt-1 text-[0.72rem] text-ink/50">Guests who asked for your shipping address — reach out to share it privately.</p>
+          <p className="mt-1 text-[0.72rem] text-ink/50">Guests who asked for your shipping address. Send it below, or update your address above first if you need to.</p>
           <div className="mt-4 space-y-2">
-            {addressRequests.map((r) => (
-              <div key={r.id} className="border border-ink/10 px-3 py-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-ink">{r.guest_name}</span>
-                  {r.guest_email && <a href={`mailto:${r.guest_email}`} className="text-[0.72rem] text-wine hover:underline">{r.guest_email}</a>}
+            {addressRequests.map((r) => {
+              const mailto = r.guest_email
+                ? `mailto:${r.guest_email}?subject=${encodeURIComponent(`Shipping address — ${registry.title}`)}&body=${encodeURIComponent(`Hi ${r.guest_name},\n\nHere's the shipping address:\n\n${address || "(add your address in Settings)"}\n\nThank you!`)}`
+                : null;
+              return (
+                <div key={r.id} className="border border-ink/10 px-3 py-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-ink">{r.guest_name}</span>
+                    <div className="flex items-center gap-3">
+                      {r.guest_email && <span className="text-[0.72rem] text-ink/50">{r.guest_email}</span>}
+                      {mailto ? (
+                        <a href={mailto} className="border border-wine/40 px-3 py-1 text-[0.64rem] uppercase tracking-[0.12em] text-wine transition-colors hover:bg-wine hover:text-chiffon">Send address →</a>
+                      ) : (
+                        <span className="text-[0.64rem] text-ink/40">No email given</span>
+                      )}
+                    </div>
+                  </div>
+                  {r.message && <p className="mt-0.5 text-[0.75rem] font-light italic text-ink/55">{r.message}</p>}
                 </div>
-                {r.message && <p className="mt-0.5 text-[0.75rem] font-light italic text-ink/55">{r.message}</p>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -672,6 +685,13 @@ export function RegistryItemManager({
     await deleteRegistryItem(fd);
     router.refresh();
   }
+  async function togglePriorityItem(id: string, next: boolean) {
+    const fd = new FormData();
+    fd.append("id", id);
+    fd.append("is_priority", String(next));
+    await togglePriority(fd);
+    router.refresh();
+  }
 
   const catName = (id: string | null) => cats.find((c) => c.id === id)?.name ?? "";
   const hasUncategorized = items.some((it) => !it.category_id);
@@ -710,11 +730,30 @@ export function RegistryItemManager({
           <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="border border-ink/20 px-5 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-ink transition-colors hover:border-wine hover:text-wine">Preview</a>
         </div>
 
+        {/* Address-request notification */}
+        {addressRequests.length > 0 && (
+          <button
+            type="button"
+            onClick={() => { setSettingsOpen(true); setAddOpen(false); }}
+            className="mt-4 flex w-full items-center gap-3 border border-wine/30 bg-[#fdf6f7] px-5 py-3 text-left transition-colors hover:border-wine"
+          >
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-wine text-[0.7rem] font-medium text-chiffon">{addressRequests.length}</span>
+            <span className="text-[0.82rem] text-ink/75">
+              {addressRequests.length === 1 ? "1 guest requested" : `${addressRequests.length} guests requested`} your shipping address — tap to respond.
+            </span>
+          </button>
+        )}
+
         {/* Toolbar */}
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-2xl text-ink">{items.length} item{items.length === 1 ? "" : "s"}</h2>
           <div className="flex gap-2">
-            <button type="button" onClick={() => { setSettingsOpen((v) => !v); setAddOpen(false); }} className="border border-ink/20 px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-ink/65 transition-colors hover:border-wine hover:text-wine">Settings</button>
+            <button type="button" onClick={() => { setSettingsOpen((v) => !v); setAddOpen(false); }} className="relative border border-ink/20 px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-ink/65 transition-colors hover:border-wine hover:text-wine">
+              Settings
+              {addressRequests.length > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-wine px-1 text-[0.6rem] font-medium text-chiffon">{addressRequests.length}</span>
+              )}
+            </button>
             <button type="button" onClick={() => { setAddOpen((v) => !v); setSettingsOpen(false); }} className="bg-ink px-6 py-2.5 text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-wine">{addOpen ? "Close" : "+ Add item"}</button>
           </div>
         </div>
@@ -730,7 +769,7 @@ export function RegistryItemManager({
         )}
 
         {/* Filter bar */}
-        {(cats.length > 0 || hasUncategorized) && items.length > 0 && (
+        {(cats.length > 0 || hasUncategorized || hasPriority) && items.length > 0 && (
           <div className="mt-8 flex flex-wrap gap-2">
             {[{ id: "all", label: "All" }, ...(hasPriority ? [{ id: "priority", label: "♥ Most wanted" }] : []), ...cats.map((c) => ({ id: c.id, label: c.is_public ? c.name : `${c.name} · private` })), ...(hasUncategorized ? [{ id: "none", label: "Uncategorized" }] : [])].map((c) => (
               <button
@@ -743,6 +782,14 @@ export function RegistryItemManager({
               </button>
             ))}
           </div>
+        )}
+
+        {/* Priority legend */}
+        {items.length > 0 && (
+          <p className="mt-3 flex items-center gap-1.5 text-[0.72rem] text-ink/50">
+            <Heart filled className="h-3 w-3 text-wine" />
+            <span><span className="text-wine">Most wanted</span> — your top picks. Tap the heart on any gift (or in Edit) to mark it; these show first for guests.</span>
+          </p>
         )}
 
         {/* Items grid */}
@@ -768,6 +815,15 @@ export function RegistryItemManager({
                       ) : (
                         <>
                           <button type="button" onClick={() => setEditingId(editingId === it.id ? null : it.id)} className="flex h-7 items-center gap-1 rounded-sm bg-white/90 px-2 text-[0.6rem] uppercase tracking-[0.1em] text-ink/70 hover:text-wine">Edit</button>
+                          <button
+                            type="button"
+                            onClick={() => togglePriorityItem(it.id, !it.is_priority)}
+                            aria-label={it.is_priority ? "Remove from most wanted" : "Mark as most wanted"}
+                            title={it.is_priority ? "Most wanted — click to remove" : "Mark as most wanted"}
+                            className={`flex h-7 w-7 items-center justify-center rounded-sm bg-white/90 ${it.is_priority ? "text-wine" : "text-ink/45 hover:text-wine"}`}
+                          >
+                            <Heart filled={it.is_priority} className="h-3.5 w-3.5" />
+                          </button>
                           <button type="button" onClick={() => setConfirmId(it.id)} aria-label="Delete item" className="ml-auto flex h-7 w-7 items-center justify-center rounded-sm bg-white/90 text-ink/55 hover:text-wine">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                               <path d="M3 6h18" />

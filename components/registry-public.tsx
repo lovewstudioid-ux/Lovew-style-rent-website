@@ -17,6 +17,7 @@ export function RegistryPublic({
 }) {
   const router = useRouter();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [intent, setIntent] = useState<"buy" | "bought" | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,6 +34,10 @@ export function RegistryPublic({
   const [addrDone, setAddrDone] = useState(false);
   const [addrErr, setAddrErr] = useState("");
 
+  function openGift(id: string) {
+    setActiveId(id); setIntent(null); setErr(""); setName(""); setEmail("");
+  }
+
   async function reserve(item: RegistryItem) {
     if (!name.trim()) return setErr("Please enter your name.");
     setBusy(true); setErr("");
@@ -41,10 +46,11 @@ export function RegistryPublic({
     fd.append("slug", registry.slug);
     fd.append("guest_name", name.trim());
     fd.append("guest_email", email.trim());
+    fd.append("purchased", String(intent === "bought"));
     const res = await reserveItem(fd);
     setBusy(false);
     if (!res.ok) { setErr(res.error ?? "Could not reserve."); router.refresh(); return; }
-    setDoneId(item.id); setActiveId(null); setName(""); setEmail("");
+    setDoneId(item.id); setActiveId(null); setIntent(null); setName(""); setEmail("");
     router.refresh();
   }
 
@@ -127,7 +133,7 @@ export function RegistryPublic({
       </div>
 
       {/* Category filter */}
-      {(categories.length > 0 || hasUncategorized) && items.length > 0 && (
+      {(categories.length > 0 || hasUncategorized || hasPriority) && items.length > 0 && (
         <div className="mt-10 flex flex-wrap justify-center gap-2">
           {[{ id: "all", label: "All" }, ...(hasPriority ? [{ id: "priority", label: "♥ Most wanted" }] : []), ...categories.map((c) => ({ id: c.id, label: c.name })), ...(hasUncategorized ? [{ id: "none", label: "Other" }] : [])].map((c) => (
             <button
@@ -140,6 +146,14 @@ export function RegistryPublic({
             </button>
           ))}
         </div>
+      )}
+
+      {/* Heart legend for guests */}
+      {hasPriority && items.length > 0 && (
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-[0.72rem] text-ink/50">
+          <Heart filled className="h-3 w-3 text-wine" />
+          <span><span className="text-wine">Most wanted</span> — the gifts {registry.title.split(" ")[0] || "the host"} would love most.</span>
+        </p>
       )}
 
       {/* Items grid */}
@@ -159,7 +173,7 @@ export function RegistryPublic({
                     </span>
                   )}
                   {reserved && (
-                    <span className="absolute left-2 top-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">Reserved</span>
+                    <span className="absolute left-2 top-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">{it.purchased ? "Purchased" : "Reserved"}</span>
                   )}
                 </div>
 
@@ -173,20 +187,34 @@ export function RegistryPublic({
 
                 <div className="mt-auto pt-3">
                   {reserved ? (
-                    <p className="text-[0.66rem] uppercase tracking-[0.12em] text-eucalyptus">{doneId === it.id ? "Reserved by you ✓" : "Taken"}</p>
+                    <p className="text-[0.66rem] uppercase tracking-[0.12em] text-eucalyptus">
+                      {doneId === it.id ? (it.purchased ? "You marked this bought ✓" : "Reserved by you ✓") : it.purchased ? "Purchased ✓" : "Reserved"}
+                    </p>
                   ) : activeId === it.id ? (
-                    <div className="space-y-2">
-                      <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-                      <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" />
-                      {err && <p className="text-[0.66rem] text-wine">{err}</p>}
-                      <div className="flex gap-2">
-                        <button type="button" disabled={busy} onClick={() => reserve(it)} className="flex-1 bg-ink px-3 py-2 text-[0.64rem] uppercase tracking-[0.14em] text-white transition-colors hover:bg-wine disabled:opacity-60">{busy ? "…" : "Confirm"}</button>
-                        <button type="button" onClick={() => { setActiveId(null); setErr(""); }} className="border border-ink/20 px-3 py-2 text-[0.64rem] uppercase tracking-[0.14em] text-ink/60">Cancel</button>
+                    intent === null ? (
+                      // Step 1 — choose intent
+                      <div className="space-y-2">
+                        <p className="text-[0.66rem] text-ink/55">How would you like to gift this?</p>
+                        <button type="button" onClick={() => setIntent("buy")} className="w-full bg-ink px-3 py-2 text-[0.64rem] uppercase tracking-[0.12em] text-white transition-colors hover:bg-wine">I&apos;ll buy this gift</button>
+                        <button type="button" onClick={() => setIntent("bought")} className="w-full border border-ink/25 px-3 py-2 text-[0.64rem] uppercase tracking-[0.12em] text-ink transition-colors hover:border-wine hover:text-wine">I already bought this</button>
+                        <button type="button" onClick={() => setActiveId(null)} className="w-full py-1 text-[0.62rem] uppercase tracking-[0.12em] text-ink/45 hover:text-ink">Cancel</button>
                       </div>
-                    </div>
+                    ) : (
+                      // Step 2 — confirm with name
+                      <div className="space-y-2">
+                        <p className="text-[0.64rem] uppercase tracking-[0.1em] text-wine">{intent === "bought" ? "Mark as already bought" : "Reserve to buy"}</p>
+                        <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+                        <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" />
+                        {err && <p className="text-[0.66rem] text-wine">{err}</p>}
+                        <div className="flex gap-2">
+                          <button type="button" disabled={busy} onClick={() => reserve(it)} className="flex-1 bg-ink px-3 py-2 text-[0.64rem] uppercase tracking-[0.14em] text-white transition-colors hover:bg-wine disabled:opacity-60">{busy ? "…" : "Confirm"}</button>
+                          <button type="button" onClick={() => setIntent(null)} className="border border-ink/20 px-3 py-2 text-[0.64rem] uppercase tracking-[0.14em] text-ink/60">Back</button>
+                        </div>
+                      </div>
+                    )
                   ) : (
-                    <button type="button" onClick={() => { setActiveId(it.id); setErr(""); setName(""); setEmail(""); }} className="w-full border border-ink/25 px-3 py-2 text-[0.66rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine hover:text-wine">
-                      I&apos;ll gift this
+                    <button type="button" onClick={() => openGift(it.id)} className="w-full border border-ink/25 px-3 py-2 text-[0.66rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine hover:text-wine">
+                      Gift this
                     </button>
                   )}
                 </div>

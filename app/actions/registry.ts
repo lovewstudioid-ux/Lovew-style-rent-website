@@ -355,6 +355,7 @@ export async function reserveItem(formData: FormData): Promise<RegistryResult> {
   const slug = String(formData.get("slug") ?? "");
   const name = String(formData.get("guest_name") ?? "").trim();
   const email = String(formData.get("guest_email") ?? "").trim();
+  const purchased = String(formData.get("purchased") ?? "false") === "true";
   if (!itemId || !name) return { ok: false, error: "Please enter your name." };
   if (email && !EMAIL_RE.test(email)) return { ok: false, error: "That email looks off." };
 
@@ -374,11 +375,33 @@ export async function reserveItem(formData: FormData): Promise<RegistryResult> {
       reserved_by_name: name,
       reserved_by_email: email || null,
       reserved_at: new Date().toISOString(),
+      purchased,
     })
     .eq("id", itemId)
     .is("reserved_at", null); // race guard
 
   if (error) return { ok: false, error: "Could not reserve. Please try again." };
   if (slug) revalidatePath(`/r/${slug}`);
+  return { ok: true };
+}
+
+/* ─────────────────────── TOGGLE "MOST WANTED" (owner) ──────────────────── */
+export async function togglePriority(formData: FormData): Promise<RegistryResult> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Please sign in first." };
+
+  const id = String(formData.get("id") ?? "");
+  const value = String(formData.get("is_priority") ?? "false") === "true";
+  if (!id) return { ok: false, error: "Missing item." };
+
+  const { data: item } = await supabase
+    .from("registry_items").select("registry_id").eq("id", id).single();
+  if (!item) return { ok: false, error: "Item not found." };
+
+  const { error } = await supabase
+    .from("registry_items").update({ is_priority: value }).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/registry/${item.registry_id}`);
   return { ok: true };
 }

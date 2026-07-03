@@ -66,6 +66,7 @@ export interface RegistryItem {
   reserved_by_name: string | null;
   reserved_by_email: string | null;
   reserved_at: string | null;
+  purchased: boolean;
   created_at: string;
 }
 
