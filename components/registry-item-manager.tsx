@@ -186,11 +186,11 @@ function DetailFields({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labCls}>Size <span className="text-ink/35">(optional)</span></label>
+          <label className={labCls}>Size</label>
           <input className={inputCls} value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. M, 38, 500ml" />
         </div>
         <div>
-          <label className={labCls}>Color <span className="text-ink/35">(optional)</span></label>
+          <label className={labCls}>Color</label>
           <input className={inputCls} value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. Black, Sage" />
         </div>
       </div>
@@ -306,7 +306,7 @@ function AddItemForm({
           price={price} setPrice={setPrice} size={size} setSize={setSize} color={color} setColor={setColor}
         />
         <div>
-          <label className={labCls}>Note for guests <span className="text-ink/35">(optional)</span></label>
+          <label className={labCls}>Notes</label>
           <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Any colour is fine, gift-wrap if possible" />
         </div>
       </div>
@@ -417,7 +417,7 @@ function EditItemForm({
           <input className={inputCls} value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" />
         </div>
         <div>
-          <label className={labCls}>Note for guests</label>
+          <label className={labCls}>Notes</label>
           <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Any preference…" />
         </div>
         {err && <p className="sm:col-span-2 text-xs text-wine">{err}</p>}
