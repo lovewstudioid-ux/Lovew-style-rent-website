@@ -222,54 +222,6 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
   return { ok: true };
 }
 
-/* ──────────────────────── RE-HOST BROKEN ITEM IMAGES ───────────────────── */
-/**
- * Re-download any item images that still point at a remote URL (e.g. an
- * expired/hotlink-blocked Shopee link added before we started re-hosting) and
- * store them in our own bucket so they display reliably.
- */
-export async function rehostRegistryImages(
-  formData: FormData,
-): Promise<{ ok: boolean; error?: string; fixed?: number; failed?: number }> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Please sign in first." };
-
-  const registryId = String(formData.get("registry_id") ?? "");
-  if (!registryId) return { ok: false, error: "Missing registry." };
-
-  // Confirm ownership.
-  const { data: registry } = await supabase
-    .from("registries").select("user_id").eq("id", registryId).single();
-  if (!registry || registry.user_id !== user.id) return { ok: false, error: "Not found." };
-
-  const { data: items } = await supabase
-    .from("registry_items").select("id, image_url").eq("registry_id", registryId);
-  if (!items) return { ok: true, fixed: 0, failed: 0 };
-
-  const publicPrefix = `/storage/v1/object/public/registry/`;
-  const remote = items.filter(
-    (it) => it.image_url && !String(it.image_url).includes(publicPrefix),
-  );
-
-  let fixed = 0, failed = 0;
-  for (const it of remote) {
-    const stored = await downloadAndStore(supabase, user.id, it.image_url as string);
-    if (stored) {
-      const { error } = await supabase
-        .from("registry_items")
-        .update({ image_url: stored.url, image_path: stored.path })
-        .eq("id", it.id);
-      if (error) failed++; else fixed++;
-    } else {
-      failed++;
-    }
-  }
-
-  revalidatePath(`/registry/${registryId}`);
-  return { ok: true, fixed, failed };
-}
-
 /* ────────────────────────────── DELETE REGISTRY ITEM ───────────────────── */
 export async function deleteRegistryItem(formData: FormData): Promise<RegistryResult> {
   const supabase = createClient();

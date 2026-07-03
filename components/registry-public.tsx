@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { reserveItem } from "@/app/actions/registry";
-import { ItemPlaceholder } from "@/components/registry-item-manager";
+import { ItemPhoto } from "@/components/registry-item-manager";
 import type { Registry, RegistryItem } from "@/lib/registry";
 
 export function RegistryPublic({ registry, items }: { registry: Registry; items: RegistryItem[] }) {
@@ -80,17 +80,7 @@ export function RegistryPublic({ registry, items }: { registry: Registry; items:
             return (
               <div key={it.id} className="flex flex-col">
                 <div className={`relative aspect-square overflow-hidden border border-ink/8 bg-white ${reserved ? "opacity-60" : ""}`}>
-                  {it.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={it.image_url}
-                      alt={it.name}
-                      className="h-full w-full object-contain p-2.5"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <ItemPlaceholder />
-                  )}
+                  <ItemPhoto src={it.image_url} alt={it.name} />
                   {reserved && (
                     <span className="absolute left-2 top-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">
                       Reserved

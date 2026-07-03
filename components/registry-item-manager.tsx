@@ -7,7 +7,6 @@ import React from "react";
 import {
   addRegistryItem,
   deleteRegistryItem,
-  rehostRegistryImages,
   updateRegistry,
   updateRegistryItem,
 } from "@/app/actions/registry";
@@ -31,6 +30,22 @@ export function ItemPlaceholder() {
         <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
       </svg>
     </div>
+  );
+}
+
+/** Item photo that gracefully falls back to the placeholder if it can't load. */
+export function ItemPhoto({ src, alt }: { src: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <ItemPlaceholder />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className="h-full w-full object-contain p-2.5"
+      loading="lazy"
+    />
   );
 }
 
@@ -76,7 +91,7 @@ function AddItemForm({
 
   const lastFetched = useRef("");
 
-  async function handleFetch(auto = false) {
+  async function handleFetch() {
     const url = linkUrl.trim();
     if (!url) return;
     lastFetched.current = url;
@@ -98,7 +113,7 @@ function AddItemForm({
     const url = linkUrl.trim();
     if (!/^https?:\/\/.+\..+/.test(url)) return;
     if (url === lastFetched.current) return;
-    const t = setTimeout(() => { void handleFetch(true); }, 700);
+    const t = setTimeout(() => { void handleFetch(); }, 700);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkUrl]);
@@ -132,22 +147,12 @@ function AddItemForm({
       <div className="space-y-4">
         <div>
           <label className={labCls}>Gift link <span className="text-ink/35">(optional — shop, Instagram, TikTok…)</span></label>
-          <div className="flex gap-2">
-            <input
-              className={inputCls}
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="Paste any link — details fill in if available"
-            />
-            <button
-              type="button"
-              disabled={!linkUrl.trim() || fetching}
-              onClick={() => handleFetch(false)}
-              className="flex-shrink-0 border border-ink/20 px-4 py-3 text-[0.7rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine hover:text-wine disabled:opacity-40"
-            >
-              {fetching ? "…" : "Refresh"}
-            </button>
-          </div>
+          <input
+            className={inputCls}
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            placeholder="Paste any link — details fill in automatically"
+          />
           {fetching && <p className="mt-1.5 text-[0.66rem] text-ink/45">Reading link…</p>}
         </div>
         <div>
@@ -416,13 +421,6 @@ export function RegistryItemManager({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [fixing, setFixing] = useState(false);
-  const [fixMsg, setFixMsg] = useState("");
-
-  // Any item whose image still points off-site (not yet re-hosted by us).
-  const brokenCount = items.filter(
-    (it) => it.image_url && !it.image_url.includes("/storage/v1/object/public/registry/"),
-  ).length;
 
   async function copyShare() {
     try {
@@ -430,22 +428,6 @@ export function RegistryItemManager({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch { /* ignore */ }
-  }
-
-  async function fixImages() {
-    setFixing(true);
-    setFixMsg("");
-    const fd = new FormData();
-    fd.append("registry_id", registry.id);
-    const res = await rehostRegistryImages(fd);
-    setFixing(false);
-    if (!res.ok) { setFixMsg(res.error ?? "Could not fix images."); return; }
-    setFixMsg(
-      res.fixed
-        ? `Re-hosted ${res.fixed} image${res.fixed === 1 ? "" : "s"}.${res.failed ? ` ${res.failed} couldn't load — replace those manually.` : ""}`
-        : "No images needed fixing (or none could be recovered — upload those manually).",
-    );
-    router.refresh();
   }
 
   async function remove(id: string) {
@@ -504,16 +486,6 @@ export function RegistryItemManager({
             {items.length} item{items.length === 1 ? "" : "s"}
           </h2>
           <div className="flex gap-2">
-            {brokenCount > 0 && (
-              <button
-                type="button"
-                onClick={fixImages}
-                disabled={fixing}
-                className="border border-wine/40 px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-wine transition-colors hover:bg-wine hover:text-chiffon disabled:opacity-60"
-              >
-                {fixing ? "Fixing…" : `Fix images (${brokenCount})`}
-              </button>
-            )}
             <button
               type="button"
               onClick={() => { setSettingsOpen((v) => !v); setAddOpen(false); }}
@@ -530,7 +502,6 @@ export function RegistryItemManager({
             </button>
           </div>
         </div>
-        {fixMsg && <p className="mt-3 text-[0.72rem] text-ink/55">{fixMsg}</p>}
 
         {/* Settings panel */}
         {settingsOpen && (
@@ -557,12 +528,7 @@ export function RegistryItemManager({
               <React.Fragment key={it.id}>
                 <div className="group">
                   <div className="relative aspect-square overflow-hidden border border-ink/8 bg-white">
-                    {it.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.image_url} alt={it.name} className="h-full w-full object-contain p-2.5" loading="lazy" />
-                    ) : (
-                      <ItemPlaceholder />
-                    )}
+                    <ItemPhoto src={it.image_url} alt={it.name} />
                     {/* Hover actions */}
                     <div className="absolute inset-x-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
                       <button
