@@ -92,6 +92,7 @@ export async function updateRegistry(formData: FormData): Promise<RegistryResult
   const note = String(formData.get("note") ?? "").trim();
   const shippingAddress = String(formData.get("shipping_address") ?? "").trim();
   const showAddress = formData.get("show_address") === "true";
+  const paymentNote = String(formData.get("payment_note") ?? "").trim();
 
   if (!id) return { ok: false, error: "Missing registry ID." };
   if (!title) return { ok: false, error: "Title is required." };
@@ -104,6 +105,7 @@ export async function updateRegistry(formData: FormData): Promise<RegistryResult
       note: note || null,
       shipping_address: shippingAddress || null,
       show_address: showAddress,
+      payment_note: paymentNote || null,
     })
     .eq("id", id)
     .eq("user_id", user.id);
@@ -134,6 +136,7 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
   const qtyRaw = parseInt(String(formData.get("qty") ?? "1"), 10);
   const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
   const isPriority = String(formData.get("is_priority") ?? "false") === "true";
+  const isGroup = String(formData.get("is_group") ?? "false") === "true";
   const note = String(formData.get("note") ?? "").trim();
   const imageUrlInput = String(formData.get("image_url") ?? "").trim();
   const file = formData.get("image");
@@ -183,6 +186,7 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
     size: size || null,
     color: color || null,
     is_priority: isPriority,
+    is_group: isGroup,
     note: note || null,
   });
   if (error) return { ok: false, error: error.message };
@@ -209,6 +213,7 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
   const qtyRaw = parseInt(String(formData.get("qty") ?? "1"), 10);
   const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
   const isPriority = String(formData.get("is_priority") ?? "false") === "true";
+  const isGroup = String(formData.get("is_group") ?? "false") === "true";
   const linkUrl = String(formData.get("link_url") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
 
@@ -235,6 +240,7 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
       size: size || null,
       color: color || null,
       is_priority: isPriority,
+      is_group: isGroup,
       link_url: linkUrl || null,
       note: note || null,
     })
@@ -383,6 +389,39 @@ export async function reserveItem(formData: FormData): Promise<RegistryResult> {
   if (error) return { ok: false, error: "Could not reserve. Please try again." };
   if (slug) revalidatePath(`/r/${slug}`);
   return { ok: true };
+}
+
+/* ───────────────────── GROUP GIFT CONTRIBUTIONS (public) ───────────────── */
+/**
+ * Add one or more contributions to a group gift. Supports both modes:
+ *  - individual: one contributor_name[] + amount[] (+ optional paid)
+ *  - organizer:  several contributor_name[] + amount[] pairs at once
+ */
+export async function addContributions(formData: FormData): Promise<RegistryResult> {
+  const itemId = String(formData.get("item_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const paid = String(formData.get("paid") ?? "false") === "true";
+  const names = formData.getAll("contributor_name").map((v) => String(v).trim());
+  const amounts = formData.getAll("amount").map((v) => digits(String(v)));
+
+  if (!itemId) return { ok: false, error: "Missing gift." };
+
+  const rows = names
+    .map((name, i) => ({ item_id: itemId, contributor_name: name, amount: amounts[i] ?? 0, paid }))
+    .filter((r) => r.contributor_name && r.amount > 0);
+
+  if (rows.length === 0) return { ok: false, error: "Add at least one name and amount." };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("registry_contributions").insert(rows);
+  if (error) return { ok: false, error: "Could not save. Please try again." };
+  if (slug) revalidatePath(`/r/${slug}`);
+  return { ok: true };
+}
+
+function digits(v: string): number {
+  const n = parseInt(v.replace(/[^\d]/g, ""), 10);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /* ─────────────────────── TOGGLE "MOST WANTED" (owner) ──────────────────── */

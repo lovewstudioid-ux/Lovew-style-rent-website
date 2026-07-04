@@ -3,7 +3,7 @@ import Link from "next/link";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { RegistryPublic } from "@/components/registry-public";
-import type { Registry, RegistryItem, RegistryCategory } from "@/lib/registry";
+import type { Registry, RegistryItem, RegistryCategory, Contribution } from "@/lib/registry";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +36,11 @@ export default async function PublicRegistryPage({ params }: { params: { slug: s
     (it) => !it.category_id || !privateIds.has(it.category_id),
   );
 
+  const itemIds = items.map((it) => it.id);
+  const { data: contribRaw } = itemIds.length
+    ? await supabase.from("registry_contributions").select("*").in("item_id", itemIds).order("created_at", { ascending: true })
+    : { data: [] };
+
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-ink/10">
@@ -50,6 +55,7 @@ export default async function PublicRegistryPage({ params }: { params: { slug: s
         registry={registry as Registry}
         items={items}
         categories={publicCats}
+        contributions={(contribRaw ?? []) as Contribution[]}
       />
     </div>
   );

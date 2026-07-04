@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { MagicLinkGate } from "@/components/magic-link-gate";
 import { RegistryItemManager } from "@/components/registry-item-manager";
-import type { Registry, RegistryItem, RegistryCategory, AddressRequest } from "@/lib/registry";
+import type { Registry, RegistryItem, RegistryCategory, AddressRequest, Contribution } from "@/lib/registry";
 
 export const metadata = { title: "Manage registry · LOVEW Studio" };
 export const dynamic = "force-dynamic";
@@ -30,6 +30,11 @@ export default async function ManageRegistryPage({ params }: { params: { id: str
     supabase.from("registry_address_requests").select("*").eq("registry_id", params.id).order("created_at", { ascending: false }),
   ]);
 
+  const itemIds = (items ?? []).map((i) => (i as RegistryItem).id);
+  const { data: contributions } = itemIds.length
+    ? await supabase.from("registry_contributions").select("*").in("item_id", itemIds).order("created_at", { ascending: true })
+    : { data: [] };
+
   const shareUrl = `${env.siteUrl}/r/${(registry as Registry).slug}`;
 
   return (
@@ -38,6 +43,7 @@ export default async function ManageRegistryPage({ params }: { params: { id: str
       items={(items ?? []) as RegistryItem[]}
       categories={(categories ?? []) as RegistryCategory[]}
       addressRequests={(requests ?? []) as AddressRequest[]}
+      contributions={(contributions ?? []) as Contribution[]}
       shareUrl={shareUrl}
     />
   );
