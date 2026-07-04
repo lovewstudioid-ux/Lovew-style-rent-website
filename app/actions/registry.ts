@@ -92,6 +92,7 @@ export async function updateRegistry(formData: FormData): Promise<RegistryResult
   const note = String(formData.get("note") ?? "").trim();
   const shippingAddress = String(formData.get("shipping_address") ?? "").trim();
   const showAddress = formData.get("show_address") === "true";
+  const paymentNote = String(formData.get("payment_note") ?? "").trim();
 
   if (!id) return { ok: false, error: "Missing registry ID." };
   if (!title) return { ok: false, error: "Title is required." };
@@ -104,6 +105,7 @@ export async function updateRegistry(formData: FormData): Promise<RegistryResult
       note: note || null,
       shipping_address: shippingAddress || null,
       show_address: showAddress,
+      payment_note: paymentNote || null,
     })
     .eq("id", id)
     .eq("user_id", user.id);
@@ -134,6 +136,7 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
   const qtyRaw = parseInt(String(formData.get("qty") ?? "1"), 10);
   const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
   const isPriority = String(formData.get("is_priority") ?? "false") === "true";
+  const isGroup = String(formData.get("is_group") ?? "false") === "true";
   const note = String(formData.get("note") ?? "").trim();
   const imageUrlInput = String(formData.get("image_url") ?? "").trim();
   const file = formData.get("image");
@@ -183,6 +186,7 @@ export async function addRegistryItem(formData: FormData): Promise<RegistryResul
     size: size || null,
     color: color || null,
     is_priority: isPriority,
+    is_group: isGroup,
     note: note || null,
   });
   if (error) return { ok: false, error: error.message };
@@ -209,6 +213,7 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
   const qtyRaw = parseInt(String(formData.get("qty") ?? "1"), 10);
   const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
   const isPriority = String(formData.get("is_priority") ?? "false") === "true";
+  const isGroup = String(formData.get("is_group") ?? "false") === "true";
   const linkUrl = String(formData.get("link_url") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
 
@@ -235,6 +240,7 @@ export async function updateRegistryItem(formData: FormData): Promise<RegistryRe
       size: size || null,
       color: color || null,
       is_priority: isPriority,
+      is_group: isGroup,
       link_url: linkUrl || null,
       note: note || null,
     })
@@ -381,48 +387,6 @@ export async function reserveItem(formData: FormData): Promise<RegistryResult> {
     .is("reserved_at", null); // race guard
 
   if (error) return { ok: false, error: "Could not reserve. Please try again." };
-  if (slug) revalidatePath(`/r/${slug}`);
-  return { ok: true };
-}
-
-/* ─────────────────────── START A GROUP GIFT (public) ───────────────────── */
-/**
- * A guest starts organizing a group gift for an item. They become the
- * organizer and collector — co-gifters send their share to THEM (never the
- * owner). Optionally records the organizer's own first contribution.
- */
-export async function startGroupGift(formData: FormData): Promise<RegistryResult> {
-  const itemId = String(formData.get("item_id") ?? "");
-  const slug = String(formData.get("slug") ?? "");
-  const organizer = String(formData.get("organizer") ?? "").trim();
-  const payment = String(formData.get("payment") ?? "").trim();
-  const amount = digits(String(formData.get("amount") ?? ""));
-  const paid = String(formData.get("paid") ?? "false") === "true";
-  if (!itemId || !organizer) return { ok: false, error: "Please enter your name." };
-  if (!payment) return { ok: false, error: "Add where co-gifters should send their share." };
-
-  const admin = createAdminClient();
-  const { data: item } = await admin
-    .from("registry_items")
-    .select("is_group, reserved_at")
-    .eq("id", itemId)
-    .single();
-  if (!item) return { ok: false, error: "Item not found." };
-  if (item.is_group) return { ok: false, error: "A group gift is already running for this." };
-  if (item.reserved_at) return { ok: false, error: "Someone already reserved this gift." };
-
-  const { error } = await admin
-    .from("registry_items")
-    .update({ is_group: true, group_organizer: organizer, group_payment: payment })
-    .eq("id", itemId);
-  if (error) return { ok: false, error: "Could not start. Please try again." };
-
-  if (amount > 0) {
-    await admin.from("registry_contributions").insert({
-      item_id: itemId, contributor_name: organizer, amount, paid,
-    });
-  }
-
   if (slug) revalidatePath(`/r/${slug}`);
   return { ok: true };
 }

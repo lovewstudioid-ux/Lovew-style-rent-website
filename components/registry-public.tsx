@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { reserveItem, requestAddress, startGroupGift } from "@/app/actions/registry";
+import { reserveItem, requestAddress } from "@/app/actions/registry";
 import { ItemPhoto, ItemMeta, Heart } from "@/components/registry-item-manager";
 import { GroupGiftPublic } from "@/components/group-gift";
 import type { Registry, RegistryItem, RegistryCategory, Contribution } from "@/lib/registry";
@@ -21,13 +21,9 @@ export function RegistryPublic({
   const contribBy = (id: string) => contributions.filter((c) => c.item_id === id);
   const router = useRouter();
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [intent, setIntent] = useState<"buy" | "bought" | "split" | null>(null);
+  const [intent, setIntent] = useState<"buy" | "bought" | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  // "split it with friends" — organizer fields
-  const [splitPayment, setSplitPayment] = useState("");
-  const [splitAmount, setSplitAmount] = useState("");
-  const [splitPaid, setSplitPaid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [doneId, setDoneId] = useState<string | null>(null);
@@ -44,25 +40,6 @@ export function RegistryPublic({
 
   function openGift(id: string) {
     setActiveId(id); setIntent(null); setErr(""); setName(""); setEmail("");
-    setSplitPayment(""); setSplitAmount(""); setSplitPaid(false);
-  }
-
-  async function startSplit(item: RegistryItem) {
-    if (!name.trim()) return setErr("Please enter your name.");
-    if (!splitPayment.trim()) return setErr("Add where co-gifters should send their share.");
-    setBusy(true); setErr("");
-    const fd = new FormData();
-    fd.append("item_id", item.id);
-    fd.append("slug", registry.slug);
-    fd.append("organizer", name.trim());
-    fd.append("payment", splitPayment.trim());
-    fd.append("amount", splitAmount);
-    fd.append("paid", String(splitPaid));
-    const res = await startGroupGift(fd);
-    setBusy(false);
-    if (!res.ok) { setErr(res.error ?? "Could not start."); return; }
-    setActiveId(null); setIntent(null);
-    router.refresh();
   }
 
   async function reserve(item: RegistryItem) {
@@ -213,7 +190,7 @@ export function RegistryPublic({
                 )}
 
                 {it.is_group ? (
-                  <GroupGiftPublic item={it} contributions={contribBy(it.id)} slug={registry.slug} />
+                  <GroupGiftPublic item={it} contributions={contribBy(it.id)} slug={registry.slug} paymentNote={registry.payment_note} />
                 ) : (
                 <div className="mt-auto pt-3">
                   {reserved ? (
@@ -222,34 +199,15 @@ export function RegistryPublic({
                     </p>
                   ) : activeId === it.id ? (
                     intent === null ? (
-                      // Step 1 — choose how to gift
+                      // Step 1 — choose intent
                       <div className="space-y-2">
                         <p className="text-[0.66rem] text-ink/55">How would you like to gift this?</p>
                         <button type="button" onClick={() => setIntent("buy")} className="w-full bg-ink px-3 py-2 text-[0.64rem] uppercase tracking-[0.12em] text-white transition-colors hover:bg-wine">I&apos;ll buy this gift</button>
                         <button type="button" onClick={() => setIntent("bought")} className="w-full border border-ink/25 px-3 py-2 text-[0.64rem] uppercase tracking-[0.12em] text-ink transition-colors hover:border-wine hover:text-wine">I already bought this</button>
-                        <button type="button" onClick={() => setIntent("split")} className="w-full border border-wine/40 px-3 py-2 text-[0.64rem] uppercase tracking-[0.12em] text-wine transition-colors hover:bg-wine hover:text-chiffon">Split it with friends</button>
                         <button type="button" onClick={() => setActiveId(null)} className="w-full py-1 text-[0.62rem] uppercase tracking-[0.12em] text-ink/45 hover:text-ink">Cancel</button>
                       </div>
-                    ) : intent === "split" ? (
-                      // Start a group gift (you organize + collect)
-                      <div className="space-y-2">
-                        <p className="text-[0.64rem] uppercase tracking-[0.1em] text-wine">Start a group gift</p>
-                        <p className="text-[0.66rem] leading-relaxed text-ink/55">You&apos;ll collect everyone&apos;s share and buy it. Friends send their part to you.</p>
-                        <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-                        <input className={inputCls} value={splitPayment} onChange={(e) => setSplitPayment(e.target.value)} placeholder="Where friends send their share (bank / QRIS / e-wallet)" />
-                        <input className={inputCls} value={splitAmount} onChange={(e) => setSplitAmount(e.target.value)} placeholder="Your own share (optional), e.g. 500.000" inputMode="numeric" />
-                        <label className="flex cursor-pointer items-center gap-2 text-[0.7rem] text-ink/60">
-                          <input type="checkbox" checked={splitPaid} onChange={(e) => setSplitPaid(e.target.checked)} className="h-3.5 w-3.5 accent-wine" />
-                          I&apos;ve put in my share already
-                        </label>
-                        {err && <p className="text-[0.66rem] text-wine">{err}</p>}
-                        <div className="flex gap-2">
-                          <button type="button" disabled={busy} onClick={() => startSplit(it)} className="flex-1 bg-wine px-3 py-2 text-[0.64rem] uppercase tracking-[0.14em] text-chiffon transition-colors hover:bg-ink disabled:opacity-60">{busy ? "…" : "Start group gift"}</button>
-                          <button type="button" onClick={() => setIntent(null)} className="border border-ink/20 px-3 py-2 text-[0.64rem] uppercase tracking-[0.14em] text-ink/60">Back</button>
-                        </div>
-                      </div>
                     ) : (
-                      // Solo buy / already bought — confirm with name
+                      // Step 2 — confirm with name
                       <div className="space-y-2">
                         <p className="text-[0.64rem] uppercase tracking-[0.1em] text-wine">{intent === "bought" ? "Mark as already bought" : "Reserve to buy"}</p>
                         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
