@@ -86,6 +86,8 @@ export interface RegistryItem {
   color: string | null;
   is_priority: boolean;
   is_group: boolean;
+  group_organizer: string | null;
+  group_payment: string | null;
   note: string | null;
   reserved_by_name: string | null;
   reserved_by_email: string | null;

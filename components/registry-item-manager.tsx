@@ -246,7 +246,6 @@ function AddItemForm({
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
   const [isPriority, setIsPriority] = useState(false);
-  const [isGroup, setIsGroup] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [note, setNote] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -302,7 +301,6 @@ function AddItemForm({
     fd.append("size", size.trim());
     fd.append("color", color.trim());
     fd.append("is_priority", String(isPriority));
-    fd.append("is_group", String(isGroup));
     fd.append("link_url", linkUrl.trim());
     fd.append("note", note.trim());
     fd.append("image_url", imageUrl.trim());
@@ -311,7 +309,7 @@ function AddItemForm({
     setBusy(false);
     if (!res.ok) return setErr(res.error ?? "Could not add the item.");
     setName(""); setCategoryId(""); setQty("1"); setPrice(""); setSize(""); setColor("");
-    setIsPriority(false); setIsGroup(false); setLinkUrl(""); setNote(""); setImageUrl(""); setFile(null); setPreview("");
+    setIsPriority(false); setLinkUrl(""); setNote(""); setImageUrl(""); setFile(null); setPreview("");
     onSaved();
     router.refresh();
   }
@@ -335,12 +333,6 @@ function AddItemForm({
           price={price} setPrice={setPrice} size={size} setSize={setSize} color={color} setColor={setColor}
         />
         <PriorityToggle on={isPriority} onClick={() => setIsPriority((v) => !v)} />
-        <label className="flex cursor-pointer items-center gap-3 border border-ink/15 px-4 py-3">
-          <Toggle on={isGroup} onClick={() => setIsGroup((v) => !v)} />
-          <span className="text-[0.74rem] text-ink/70">
-            {isGroup ? "Group gift — friends give together toward the price" : "Make this a group gift"}
-          </span>
-        </label>
         <div>
           <label className={labCls}>Notes</label>
           <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Any colour is fine, gift-wrap if possible" />
@@ -407,7 +399,6 @@ function EditItemForm({
   const [size, setSize] = useState(item.size ?? "");
   const [color, setColor] = useState(item.color ?? "");
   const [isPriority, setIsPriority] = useState(item.is_priority);
-  const [isGroup, setIsGroup] = useState(item.is_group);
   const [linkUrl, setLinkUrl] = useState(item.link_url ?? "");
   const [note, setNote] = useState(item.note ?? "");
 
@@ -425,7 +416,6 @@ function EditItemForm({
     fd.append("size", size.trim());
     fd.append("color", color.trim());
     fd.append("is_priority", String(isPriority));
-    fd.append("is_group", String(isGroup));
     fd.append("link_url", linkUrl.trim());
     fd.append("note", note.trim());
     const res = await updateRegistryItem(fd);
@@ -454,14 +444,6 @@ function EditItemForm({
         </div>
         <div className="sm:col-span-2">
           <PriorityToggle on={isPriority} onClick={() => setIsPriority((v) => !v)} />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="flex cursor-pointer items-center gap-3 border border-ink/15 px-4 py-3">
-            <Toggle on={isGroup} onClick={() => setIsGroup((v) => !v)} />
-            <span className="text-[0.74rem] text-ink/70">
-              {isGroup ? "Group gift — friends give together toward the price" : "Make this a group gift"}
-            </span>
-          </label>
         </div>
         <div>
           <label className={labCls}>Gift link</label>
@@ -501,7 +483,6 @@ function SettingsPanel({
   const [note, setNote] = useState(registry.note ?? "");
   const [address, setAddress] = useState(registry.shipping_address ?? "");
   const [showAddress, setShowAddress] = useState(registry.show_address);
-  const [paymentNote, setPaymentNote] = useState(registry.payment_note ?? "");
 
   // category management
   const [newCat, setNewCat] = useState("");
@@ -519,7 +500,6 @@ function SettingsPanel({
     fd.append("note", note.trim());
     fd.append("shipping_address", address.trim());
     fd.append("show_address", String(showAddress));
-    fd.append("payment_note", paymentNote.trim());
     const res = await updateRegistry(fd);
     setBusy(false);
     if (!res.ok) return setErr(res.error ?? "Could not save.");
@@ -592,11 +572,6 @@ function SettingsPanel({
           {!showAddress && address && (
             <p className="mt-1.5 text-[0.66rem] text-ink/45">Hidden — guests see a &quot;Request address&quot; button, and their requests show below.</p>
           )}
-        </div>
-        <div className="md:col-span-2">
-          <label className={labCls}>Payment details for group gifts <span className="text-ink/35">(optional)</span></label>
-          <textarea className={inputCls} rows={2} value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} placeholder="e.g. BCA 1234567890 (Jocelyn) · GoPay 0812… · or a QRIS link" />
-          <p className="mt-1 text-[0.66rem] text-ink/45">Shown on group gifts so friends know where to send their share.</p>
         </div>
         {err && <p className="md:col-span-2 text-xs text-wine">{err}</p>}
         <div className="flex gap-2 md:col-span-2">

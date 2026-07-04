@@ -49,7 +49,8 @@ function Progress({ item, contributions }: { item: RegistryItem; contributions: 
 export function GroupGiftSummary({ item, contributions }: { item: RegistryItem; contributions: Contribution[] }) {
   return (
     <div className="mt-2 border border-wine/20 bg-[#fdf6f7] p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-[0.6rem] font-medium uppercase tracking-[0.14em] text-wine">Group gift</p>
+      <p className="text-[0.6rem] font-medium uppercase tracking-[0.14em] text-wine">Group gift in progress</p>
+      {item.group_organizer && <p className="mb-2 mt-0.5 text-[0.72rem] text-ink/55">Organized by {item.group_organizer}</p>}
       <Progress item={item} contributions={contributions} />
     </div>
   );
@@ -57,12 +58,11 @@ export function GroupGiftSummary({ item, contributions }: { item: RegistryItem; 
 
 /* ─── Guest-side interactive card ───────────────────────────────────────── */
 export function GroupGiftPublic({
-  item, contributions, slug, paymentNote,
+  item, contributions, slug,
 }: {
   item: RegistryItem;
   contributions: Contribution[];
   slug: string;
-  paymentNote: string | null;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"none" | "pick" | "mine" | "group">("none");
@@ -120,12 +120,15 @@ export function GroupGiftPublic({
   return (
     <div className="mt-auto pt-3">
       <div className="border border-wine/20 bg-[#fdf6f7] p-3">
-        <p className="mb-2 text-[0.6rem] font-medium uppercase tracking-[0.16em] text-wine">Group gift · give together</p>
+        <p className="text-[0.6rem] font-medium uppercase tracking-[0.16em] text-wine">Group gift · give together</p>
+        {item.group_organizer && (
+          <p className="mb-2 mt-0.5 text-[0.72rem] text-ink/55">Organized by {item.group_organizer}</p>
+        )}
         <Progress item={item} contributions={contributions} />
 
-        {paymentNote && (
+        {item.group_payment && (
           <p className="mt-3 border-t border-wine/15 pt-2 text-[0.7rem] leading-relaxed text-ink/60">
-            <span className="text-ink/45">Pay to:</span> {paymentNote}
+            <span className="text-ink/45">Send your share to:</span> {item.group_payment}
           </p>
         )}
 
