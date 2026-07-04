@@ -27,19 +27,6 @@ export function formatPrice(price: string | null, currency: string | null): stri
   return sym ? `${sym} ${p}` : p;
 }
 
-/** Digits-only numeric value from a free-text amount (e.g. "Rp 2.500.000" → 2500000). */
-export function parseAmount(v: string | number | null | undefined): number {
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  const n = parseInt(String(v ?? "").replace(/[^\d]/g, ""), 10);
-  return Number.isFinite(n) ? n : 0;
-}
-
-/** Format a numeric amount with its currency symbol, e.g. 2500000 → "Rp 2.500.000". */
-export function formatAmount(n: number, currency: string | null): string {
-  const sym = currencySymbol(currency) || "Rp";
-  return `${sym} ${Math.round(n).toLocaleString("id-ID")}`;
-}
-
 export interface Registry {
   id: string;
   user_id: string;
@@ -49,16 +36,6 @@ export interface Registry {
   note: string | null;
   shipping_address: string | null;
   show_address: boolean;
-  payment_note: string | null;
-  created_at: string;
-}
-
-export interface Contribution {
-  id: string;
-  item_id: string;
-  contributor_name: string;
-  amount: number;
-  paid: boolean;
   created_at: string;
 }
 
@@ -85,7 +62,6 @@ export interface RegistryItem {
   size: string | null;
   color: string | null;
   is_priority: boolean;
-  is_group: boolean;
   note: string | null;
   reserved_by_name: string | null;
   reserved_by_email: string | null;

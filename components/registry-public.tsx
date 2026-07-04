@@ -4,21 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { reserveItem, requestAddress } from "@/app/actions/registry";
 import { ItemPhoto, ItemMeta, Heart } from "@/components/registry-item-manager";
-import { GroupGiftPublic } from "@/components/group-gift";
-import type { Registry, RegistryItem, RegistryCategory, Contribution } from "@/lib/registry";
+import type { Registry, RegistryItem, RegistryCategory } from "@/lib/registry";
 
 export function RegistryPublic({
   registry,
   items,
   categories,
-  contributions,
 }: {
   registry: Registry;
   items: RegistryItem[];
   categories: RegistryCategory[];
-  contributions: Contribution[];
 }) {
-  const contribBy = (id: string) => contributions.filter((c) => c.item_id === id);
   const router = useRouter();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [intent, setIntent] = useState<"buy" | "bought" | null>(null);
@@ -189,9 +185,6 @@ export function RegistryPublic({
                   <a href={it.link_url} target="_blank" rel="noopener noreferrer" className="mt-0.5 text-[0.66rem] uppercase tracking-[0.12em] text-ink/45 hover:text-wine">View item →</a>
                 )}
 
-                {it.is_group ? (
-                  <GroupGiftPublic item={it} contributions={contribBy(it.id)} slug={registry.slug} paymentNote={registry.payment_note} />
-                ) : (
                 <div className="mt-auto pt-3">
                   {reserved ? (
                     <p className="text-[0.66rem] uppercase tracking-[0.12em] text-eucalyptus">
@@ -225,7 +218,6 @@ export function RegistryPublic({
                     </button>
                   )}
                 </div>
-                )}
               </div>
             );
           })}
