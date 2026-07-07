@@ -1,9 +1,31 @@
 import { Label } from "@/components/studio-ui";
 import { PortfolioGallery, type PortfolioSection } from "@/components/portfolio-gallery";
+import { env } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
+import { inquiryUrl } from "@/lib/inquiry";
 
 export const metadata = { title: "LOVEW Styling — Our works · LOVEW Studio" };
+export const dynamic = "force-dynamic";
 
 const INQUIRY = "https://tally.so/r/Gxd6ZL";
+
+/** Pre-fill the styling inquiry form from the signed-in user's profile. */
+async function getInquiry(): Promise<string> {
+  if (!env.supabaseConfigured) return INQUIRY;
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return INQUIRY;
+    const { data: profile } = await supabase.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
+    return inquiryUrl(INQUIRY, {
+      name: (profile?.full_name as string) ?? "",
+      email: user.email ?? "",
+      phone: (profile?.phone as string) ?? "",
+    });
+  } catch {
+    return INQUIRY;
+  }
+}
 // Full slide range (downloaded): /portfolio/s-N.jpg
 const r = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => `/portfolio/s-${a + i}.jpg`);
 
@@ -47,7 +69,8 @@ const TESTIMONIALS = [
   { quote: "I love your stories and all your work. It's hard for me to find someone with the same taste.", name: "Lany", brand: "Laboo" },
 ];
 
-export default function StylingPage() {
+export default async function StylingPage() {
+  const inquiry = await getInquiry();
   return (
     <>
       <section className="bg-wine text-chiffon">
@@ -58,7 +81,7 @@ export default function StylingPage() {
       </section>
 
       <section className="mx-auto max-w-editorial px-6 py-16 md:py-20">
-        <PortfolioGallery sections={SECTIONS} inquiry={INQUIRY} />
+        <PortfolioGallery sections={SECTIONS} inquiry={inquiry} />
       </section>
 
       <section className="border-t border-ink/10 bg-[#faf8f5]">

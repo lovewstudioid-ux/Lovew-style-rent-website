@@ -1,8 +1,29 @@
 import { PortfolioGallery, type PortfolioSection } from "@/components/portfolio-gallery";
+import { env } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
+import { inquiryUrl } from "@/lib/inquiry";
 
 export const metadata = { title: "LOVEW Production — Our works · LOVEW Studio" };
+export const dynamic = "force-dynamic";
 
 const INQUIRY = "https://tally.so/r/Gxd6ZL";
+
+async function getInquiry(): Promise<string> {
+  if (!env.supabaseConfigured) return INQUIRY;
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return INQUIRY;
+    const { data: profile } = await supabase.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
+    return inquiryUrl(INQUIRY, {
+      name: (profile?.full_name as string) ?? "",
+      email: user.email ?? "",
+      phone: (profile?.phone as string) ?? "",
+    });
+  } catch {
+    return INQUIRY;
+  }
+}
 // Full slide range (downloaded): /portfolio/p-N.jpg. Cover = first slide.
 const r = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => `/portfolio/p-${a + i}.jpg`);
 const c = (n: number) => `/portfolio/p-${n}.jpg`;
@@ -64,7 +85,8 @@ const SECTIONS: PortfolioSection[] = [
   },
 ];
 
-export default function ProductionPage() {
+export default async function ProductionPage() {
+  const inquiry = await getInquiry();
   return (
     <>
       {/* Hero — wine band */}
@@ -77,7 +99,7 @@ export default function ProductionPage() {
 
       {/* Portfolio */}
       <section className="mx-auto max-w-editorial px-6 py-16 md:py-20">
-        <PortfolioGallery sections={SECTIONS} inquiry={INQUIRY} />
+        <PortfolioGallery sections={SECTIONS} inquiry={inquiry} />
       </section>
     </>
   );

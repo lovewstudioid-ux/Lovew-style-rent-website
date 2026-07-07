@@ -9,8 +9,9 @@ import { GENDERS, COUNTRIES, CITIES, BIRTH_DAYS, BIRTH_MONTHS, BIRTH_YEARS } fro
 import { StyleIdResult } from "@/components/style-id-result";
 import { MeasurementFlow } from "@/components/measurement-flow";
 import type { StyleAnalysis } from "@/lib/style-id-prompts";
+import { inquiryUrl } from "@/lib/inquiry";
 
-const INQUIRY = "https://tally.so/r/Gxd6ZL";
+const INQUIRY_BASE = "https://tally.so/r/Gxd6ZL";
 
 type Phase = "loading" | "result" | "error";
 
@@ -24,6 +25,7 @@ export function StyleIdExperience({
   signedIn,
   email,
   name,
+  phone,
   savedResult,
   savedSlug,
   savedPhoto,
@@ -39,14 +41,16 @@ export function StyleIdExperience({
   savedMeasurements?: Record<string, string | null> | null;
 }) {
   const profileComplete = signedIn && Boolean(name);
+  const inquiry = inquiryUrl(INQUIRY_BASE, { name, email, phone });
   if (!signedIn) return <Shell><SignInStep /></Shell>;
   if (!profileComplete) return <Shell><ProfileStep email={email} /></Shell>;
-  return <Hub name={name} savedResult={savedResult} savedSlug={savedSlug} savedPhoto={savedPhoto} savedMeasurements={savedMeasurements} />;
+  return <Hub name={name} inquiry={inquiry} savedResult={savedResult} savedSlug={savedSlug} savedPhoto={savedPhoto} savedMeasurements={savedMeasurements} />;
 }
 
 /* ------------------------------------------------------------------- HUB */
-function Hub({ name, savedResult, savedSlug, savedPhoto, savedMeasurements }: {
+function Hub({ name, inquiry, savedResult, savedSlug, savedPhoto, savedMeasurements }: {
   name: string;
+  inquiry: string;
   savedResult?: StyleAnalysis | null;
   savedSlug?: string;
   savedPhoto?: string;
@@ -77,7 +81,7 @@ function Hub({ name, savedResult, savedSlug, savedPhoto, savedMeasurements }: {
           photo={savedPhoto ?? ""}
           name={first}
           demo={false}
-          inquiry={INQUIRY}
+          inquiry={inquiry}
           savedSlug={savedSlug}
           onReset={() => setMode("guide")}
         />
@@ -91,7 +95,7 @@ function Hub({ name, savedResult, savedSlug, savedPhoto, savedMeasurements }: {
         <button type="button" onClick={() => setMode(backFromMode)} className="mb-3 text-[0.66rem] uppercase tracking-[0.18em] text-ink/45 hover:text-wine">
           {savedResult ? "← My Style ID" : "← Style ID"}
         </button>
-        <Generator firstName={first} />
+        <Generator firstName={first} inquiry={inquiry} />
       </Shell>
     );
   }
@@ -250,7 +254,7 @@ function ProfileStep({ email }: { email: string }) {
 }
 
 /* -------------------------------------------------------------- GENERATOR */
-function Generator({ firstName }: { firstName: string }) {
+function Generator({ firstName, inquiry }: { firstName: string; inquiry: string }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase | null>(null);
   const [hijab, setHijab] = useState<boolean | null>(null);
@@ -317,7 +321,7 @@ function Generator({ firstName }: { firstName: string }) {
     );
   }
   if (phase === "result" && analysis) {
-    return <StyleIdResult analysis={analysis} photo={preview} name={firstName} demo={demo} inquiry={INQUIRY} onReset={reset} photoFile={file} savedSlug={savedSlug || undefined} />;
+    return <StyleIdResult analysis={analysis} photo={preview} name={firstName} demo={demo} inquiry={inquiry} onReset={reset} photoFile={file} savedSlug={savedSlug || undefined} />;
   }
   if (phase === "error") {
     return (
