@@ -146,13 +146,15 @@ function SignInStep() {
         Create a free account once — then your name &amp; contact carry across everything, no re-typing.
       </p>
 
-      <button
-        type="button"
-        onClick={() => { const fd = new FormData(); fd.append("next", "/discover"); void signInWithGoogle(fd); }}
-        className="mt-7 flex w-full items-center justify-center gap-3 border border-ink/20 bg-white px-8 py-3.5 text-xs uppercase tracking-[0.2em] text-ink transition-colors hover:border-wine"
-      >
-        Continue with Google
-      </button>
+      <form action={signInWithGoogle} className="mt-7">
+        <input type="hidden" name="next" value="/discover" />
+        <button
+          type="submit"
+          className="flex w-full items-center justify-center gap-3 border border-ink/20 bg-white px-8 py-3.5 text-xs uppercase tracking-[0.2em] text-ink transition-colors hover:border-wine"
+        >
+          Continue with Google
+        </button>
+      </form>
 
       <div className="my-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-ink/10" /><span className="text-[0.66rem] uppercase tracking-[0.2em] text-ink/40">or</span><span className="h-px flex-1 bg-ink/10" />
