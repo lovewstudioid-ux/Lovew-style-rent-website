@@ -119,7 +119,13 @@ export async function signInWithMagicLink(formData: FormData): Promise<AuthActio
     },
   });
   if (error) {
-    return { ok: false, error: "Couldn't send the sign-in link. Please try again." };
+    const m = (error.message || "").toLowerCase();
+    if (m.includes("rate") || m.includes("limit") || m.includes("too many") || m.includes("after") || m.includes("seconds")) {
+      return { ok: false, error: "Too many sign-in emails just now — please wait a few minutes, then try again." };
+    }
+    // Surface the real reason (e.g. redirect not allowed, SMTP not configured)
+    // so it can be fixed instead of hidden behind a generic message.
+    return { ok: false, error: error.message || "Couldn't send the sign-in link. Please try again." };
   }
   return { ok: true, message: "Check your email for a sign-in link." };
 }

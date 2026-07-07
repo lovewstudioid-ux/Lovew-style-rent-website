@@ -176,7 +176,11 @@ function SignInStep() {
           <button type="submit" disabled={busy} className={btnCls}>{busy ? "Sending…" : "Email me a sign-in link →"}</button>
         </form>
       )}
-      <p className="mt-5 text-center text-[0.7rem] font-light text-ink/45">You can browse freely — sign in only to generate your Style ID.</p>
+      <p className="mt-5 text-center text-[0.7rem] font-light text-ink/45">
+        Already have a password?{" "}
+        <a href="/sign-in?next=/discover" className="text-wine underline-offset-2 hover:underline">Sign in here</a>.
+      </p>
+      <p className="mt-1.5 text-center text-[0.7rem] font-light text-ink/45">You can browse freely — sign in only to generate your Style ID.</p>
     </div>
   );
 }
