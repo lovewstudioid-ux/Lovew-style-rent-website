@@ -689,7 +689,8 @@ export function RegistryItemManager({
     const fd = new FormData();
     fd.append("id", id);
     fd.append("is_priority", String(next));
-    await togglePriority(fd);
+    const res = await togglePriority(fd);
+    if (!res.ok) { alert(res.error ?? "Couldn't update. Please try again."); return; }
     router.refresh();
   }
 
@@ -805,7 +806,7 @@ export function RegistryItemManager({
                 <div className="group">
                   <div className="relative aspect-square overflow-hidden border border-ink/8 bg-white">
                     <ItemPhoto src={it.image_url} alt={it.name} />
-                    <div className={`absolute inset-x-2 top-2 flex gap-1.5 transition-opacity ${confirmId === it.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                    <div className={`absolute inset-x-2 top-2 flex gap-1.5 transition-opacity ${confirmId === it.id ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"}`}>
                       {confirmId === it.id ? (
                         <div className="ml-auto flex items-center gap-2 rounded-sm bg-white/95 px-2.5 py-1.5 text-[0.62rem] uppercase tracking-[0.1em] shadow-sm">
                           <span className="text-ink/60">Delete?</span>
@@ -814,17 +815,8 @@ export function RegistryItemManager({
                         </div>
                       ) : (
                         <>
-                          <button type="button" onClick={() => setEditingId(editingId === it.id ? null : it.id)} className="flex h-7 items-center gap-1 rounded-sm bg-white/90 px-2 text-[0.6rem] uppercase tracking-[0.1em] text-ink/70 hover:text-wine">Edit</button>
-                          <button
-                            type="button"
-                            onClick={() => togglePriorityItem(it.id, !it.is_priority)}
-                            aria-label={it.is_priority ? "Remove from most wanted" : "Mark as most wanted"}
-                            title={it.is_priority ? "Most wanted — click to remove" : "Mark as most wanted"}
-                            className={`flex h-7 w-7 items-center justify-center rounded-sm bg-white/90 ${it.is_priority ? "text-wine" : "text-ink/45 hover:text-wine"}`}
-                          >
-                            <Heart filled={it.is_priority} className="h-3.5 w-3.5" />
-                          </button>
-                          <button type="button" onClick={() => setConfirmId(it.id)} aria-label="Delete item" className="ml-auto flex h-7 w-7 items-center justify-center rounded-sm bg-white/90 text-ink/55 hover:text-wine">
+                          <button type="button" onClick={() => setEditingId(editingId === it.id ? null : it.id)} className="flex h-7 items-center gap-1 rounded-sm bg-white/90 px-2 text-[0.6rem] uppercase tracking-[0.1em] text-ink/70 hover:text-wine shadow-sm">Edit</button>
+                          <button type="button" onClick={() => setConfirmId(it.id)} aria-label="Delete item" className="ml-auto flex h-7 w-7 items-center justify-center rounded-sm bg-white/90 text-ink/55 hover:text-wine shadow-sm">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                               <path d="M3 6h18" />
                               <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -835,11 +827,16 @@ export function RegistryItemManager({
                         </>
                       )}
                     </div>
-                    {it.is_priority && (
-                      <span title="Most wanted" className="absolute left-2 bottom-2 flex h-6 w-6 items-center justify-center rounded-full bg-wine text-chiffon shadow">
-                        <Heart filled className="h-3 w-3" />
-                      </span>
-                    )}
+                    {/* Always-visible "most wanted" heart toggle */}
+                    <button
+                      type="button"
+                      onClick={() => togglePriorityItem(it.id, !it.is_priority)}
+                      aria-label={it.is_priority ? "Remove from most wanted" : "Mark as most wanted"}
+                      title={it.is_priority ? "Most wanted — tap to remove" : "Tap to mark most wanted"}
+                      className={`absolute left-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-full shadow transition-colors ${it.is_priority ? "bg-wine text-chiffon" : "bg-white/90 text-ink/45 hover:text-wine"}`}
+                    >
+                      <Heart filled={it.is_priority} className="h-4 w-4" />
+                    </button>
                     {it.reserved_at && (
                       <span className="absolute right-2 bottom-2 bg-eucalyptus px-2 py-0.5 text-[0.55rem] uppercase tracking-[0.1em] text-white">Reserved</span>
                     )}
