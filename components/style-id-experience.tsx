@@ -9,6 +9,7 @@ import { GENDERS, COUNTRIES, CITIES, BIRTH_DAYS, BIRTH_MONTHS, BIRTH_YEARS } fro
 import { StyleIdResult } from "@/components/style-id-result";
 import { MeasurementFlow } from "@/components/measurement-flow";
 import type { StyleAnalysis } from "@/lib/style-id-prompts";
+import type { Comcard } from "@/app/actions/comcard";
 import { inquiryUrl } from "@/lib/inquiry";
 
 const INQUIRY_BASE = "https://tally.so/r/Gxd6ZL";
@@ -30,6 +31,7 @@ export function StyleIdExperience({
   savedSlug,
   savedPhoto,
   savedMeasurements,
+  comcards = [],
 }: {
   signedIn: boolean;
   email: string;
@@ -39,28 +41,30 @@ export function StyleIdExperience({
   savedSlug?: string;
   savedPhoto?: string;
   savedMeasurements?: Record<string, string | null> | null;
+  comcards?: Comcard[];
 }) {
   const profileComplete = signedIn && Boolean(name);
   const inquiry = inquiryUrl(INQUIRY_BASE, { name, email, phone });
   if (!signedIn) return <Shell><SignInStep /></Shell>;
   if (!profileComplete) return <Shell><ProfileStep email={email} /></Shell>;
-  return <Hub name={name} inquiry={inquiry} savedResult={savedResult} savedSlug={savedSlug} savedPhoto={savedPhoto} savedMeasurements={savedMeasurements} />;
+  return <Hub name={name} inquiry={inquiry} savedResult={savedResult} savedSlug={savedSlug} savedPhoto={savedPhoto} savedMeasurements={savedMeasurements} comcards={comcards} />;
 }
 
 /* ------------------------------------------------------------------- HUB */
-function Hub({ name, inquiry, savedResult, savedSlug, savedPhoto, savedMeasurements }: {
+function Hub({ name, inquiry, savedResult, savedSlug, savedPhoto, savedMeasurements, comcards }: {
   name: string;
   inquiry: string;
   savedResult?: StyleAnalysis | null;
   savedSlug?: string;
   savedPhoto?: string;
   savedMeasurements?: Record<string, string | null> | null;
+  comcards: Comcard[];
 }) {
   const [mode, setMode] = useState<Mode>(savedResult ? "saved" : "choose");
   const first = name.split(" ")[0] || "there";
   const backFromMode = savedResult ? "saved" : "choose";
 
-  if (mode === "measure") return <MeasurementFlow name={name} onBack={() => setMode(backFromMode)} initialValues={savedMeasurements} />;
+  if (mode === "measure") return <MeasurementFlow name={name} onBack={() => setMode(backFromMode)} comcards={comcards} ownMeasurements={savedMeasurements} />;
 
   if (mode === "saved" && savedResult) {
     return (
