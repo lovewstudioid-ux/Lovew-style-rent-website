@@ -11,6 +11,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
 
@@ -21,6 +22,23 @@ function safeNext(rawNext: string | null | undefined): string {
   // Prevent open-redirects: only allow internal paths starting with a single /.
   if (rawNext.startsWith("/") && !rawNext.startsWith("//")) return rawNext;
   return "/account";
+}
+
+/**
+ * The origin of the site the request actually came in on. Derived from request
+ * headers so OAuth/email links point at the real domain even if
+ * NEXT_PUBLIC_SITE_URL is unset (which would otherwise default to localhost).
+ */
+function siteOrigin(): string {
+  try {
+    const h = headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    if (host) return `${proto}://${host}`;
+  } catch {
+    /* headers() unavailable — fall back */
+  }
+  return env.siteUrl;
 }
 
 export async function signInWithPassword(formData: FormData): Promise<AuthActionResult> {
@@ -60,7 +78,7 @@ export async function signUpWithPassword(formData: FormData): Promise<AuthAction
     password,
     options: {
       data: { full_name: fullName, phone },
-      emailRedirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+      emailRedirectTo: `${siteOrigin()}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
 
@@ -115,7 +133,7 @@ export async function signInWithMagicLink(formData: FormData): Promise<AuthActio
     email,
     options: {
       shouldCreateUser: true,
-      emailRedirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+      emailRedirectTo: `${siteOrigin()}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
   if (error) {
@@ -136,7 +154,7 @@ export async function signInWithGoogle(formData: FormData): Promise<AuthActionRe
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+      redirectTo: `${siteOrigin()}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
   if (error || !data.url) {
@@ -152,7 +170,7 @@ export async function requestPasswordReset(formData: FormData): Promise<AuthActi
   }
   const supabase = createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${env.siteUrl}/auth/callback?next=/account`,
+    redirectTo: `${siteOrigin()}/auth/callback?next=/account`,
   });
   if (error) return { ok: false, error: "Tidak bisa kirim link reset. Coba lagi." };
   return {
