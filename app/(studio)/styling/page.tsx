@@ -69,6 +69,25 @@ const TESTIMONIALS = [
   { quote: "I love your stories and all your work. It's hard for me to find someone with the same taste.", name: "Lany", brand: "Laboo" },
 ];
 
+const SERVICES_CARDS = [
+  {
+    n: "①",
+    title: "Brand / commercial styling",
+    body: "Campaign, lookbook and content shoots for brands — concept to wardrobe, on set.",
+  },
+  {
+    n: "②",
+    title: "Personal photoshoot styling",
+    body: "Styled for your own shoot — birthday, graduation, family, personal branding.",
+  },
+  {
+    n: "③",
+    title: "Personal styling",
+    body: "Styling transformation, event styling, and travel wardrobes — made personal.",
+    onboarding: true,
+  },
+];
+
 export default async function StylingPage() {
   const inquiry = await getInquiry();
   return (
@@ -76,12 +95,50 @@ export default async function StylingPage() {
       <section className="bg-wine text-chiffon">
         <div className="mx-auto max-w-editorial px-6 py-20 text-center md:py-28">
           <p className="text-[0.7rem] font-medium uppercase tracking-[0.34em] text-chiffon/55">LOVEW Styling</p>
-          <h1 className="mt-6 font-display text-5xl font-normal text-chiffon md:text-7xl">Our works</h1>
+          <h1 className="mt-6 font-display text-5xl font-normal text-chiffon md:text-7xl">Styling, three ways</h1>
+          <p className="mx-auto mt-5 max-w-md text-[0.88rem] font-light leading-relaxed text-chiffon/65">
+            For brands, for your own shoot, or for your everyday self — pick the one that fits.
+          </p>
         </div>
       </section>
 
+      {/* Services */}
       <section className="mx-auto max-w-editorial px-6 py-16 md:py-20">
-        <PortfolioGallery sections={SECTIONS} inquiry={inquiry} />
+        <div className="grid gap-5 md:grid-cols-3">
+          {SERVICES_CARDS.map((s) => (
+            <div key={s.title} className="flex flex-col border border-ink/12 bg-white p-7 shadow-sm">
+              <p className="font-display text-2xl text-ink/30">{s.n}</p>
+              <h2 className="mt-3 font-display text-2xl text-ink">{s.title}</h2>
+              <p className="mt-3 flex-1 text-sm font-light leading-relaxed text-ink/55">{s.body}</p>
+              <div className="mt-6 flex flex-col gap-2">
+                <a
+                  href={inquiry}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center bg-ink px-6 py-3 text-[0.7rem] uppercase tracking-[0.18em] text-white transition-colors hover:bg-wine"
+                >
+                  Inquire →
+                </a>
+                {s.onboarding && (
+                  <a
+                    href="/styling/start"
+                    className="inline-flex items-center justify-center border border-wine/40 px-6 py-3 text-[0.7rem] uppercase tracking-[0.18em] text-wine transition-colors hover:bg-wine hover:text-chiffon"
+                  >
+                    Already booked? Start onboarding →
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-t border-ink/10 bg-[#faf8f5]">
+        <div className="mx-auto max-w-editorial px-6 py-16 md:py-20">
+          <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-ink/45">Our works</p>
+          <div className="mt-8">
+            <PortfolioGallery sections={SECTIONS} inquiry={inquiry} />
+          </div>
+        </div>
       </section>
 
       <section className="border-t border-ink/10 bg-[#faf8f5]">
