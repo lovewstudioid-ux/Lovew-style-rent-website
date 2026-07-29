@@ -8,8 +8,8 @@
  *   Hourglass          |bust−hips| small AND waist ≥9" smaller than bust OR ≥10" smaller than hips
  *   Bottom Hourglass   hips 3.6–10" bigger than bust AND waist ≥9" smaller than hips
  *   Top Hourglass      bust 1–10" bigger than hips AND waist ≥9" smaller than bust
- *   Spoon              hips >2" bigger than bust, defined waist, + a high-hip "shelf"
- *   Triangle (pear)    hips ≥3.6" bigger than bust, waist <9" smaller than hips
+ *   Pear               hips clearly bigger than bust (includes FFIT's "spoon"
+ *                      high-hip-shelf variant — grouped as Pear to keep it simple)
  *   Inverted Triangle  bust ≥3.6" bigger than hips, waist <9" smaller than bust
  *   Rectangle          everything else (few big differences, soft waist)
  */
@@ -65,18 +65,15 @@ export function computeBodyType(
       note: "Bust is a little wider than the hips with a defined waist — balance with fuller skirts and A-line bottoms.",
     };
 
-  // 4. Spoon — pear-like with a pronounced high-hip shelf (needs high hip)
-  if (hipVsBust > 2 && hipVsWaist >= 7 && hh > 0 && hh - w >= 0.193 * w)
+  // 4. Pear — hips clearly wider than shoulders (includes the "spoon" high-hip
+  // shelf variant; both are grouped as Pear to keep the set simple).
+  if (
+    (hipVsBust >= 3.6 && hipVsWaist < 9) ||
+    (hipVsBust > 2 && hipVsWaist >= 7 && hh > 0 && hh - w >= 0.193 * w)
+  )
     return {
-      type: "Spoon",
-      note: "Hips are wider than the bust with a shelf at the upper hip — A-line skirts and structured tops flatter beautifully.",
-    };
-
-  // 5. Triangle (pear) — hips clearly wider than shoulders
-  if (hipVsBust >= 3.6 && hipVsWaist < 9)
-    return {
-      type: "Triangle",
-      note: "Also called a pear — hips are wider than the shoulders. Highlight your waist and draw the eye upward.",
+      type: "Pear",
+      note: "Hips are wider than the shoulders — highlight your waist and draw the eye upward with detailed, structured tops.",
     };
 
   // 6. Inverted Triangle — shoulders/bust clearly wider than hips
