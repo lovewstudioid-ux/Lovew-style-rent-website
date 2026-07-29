@@ -25,7 +25,7 @@ export async function saveMeasurement(formData: FormData): Promise<MeasurementRe
     const v = String(formData.get(f) ?? "").trim();
     row[f] = v || null;
   }
-  const bt = computeBodyType(row.bust ?? "", row.waist ?? "", row.hips ?? "");
+  const bt = computeBodyType(row.bust ?? "", row.waist ?? "", row.hips ?? "", row.high_hip ?? "");
   row.body_type = bt?.type ?? null;
 
   const { error } = await supabase.from("style_profiles").upsert(row, { onConflict: "user_id" });

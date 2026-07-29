@@ -66,7 +66,7 @@ export function MeasurementFlow({
   const photoRef = useRef<HTMLInputElement>(null);
 
   const set = (k: string, v: string) => setVals((s) => ({ ...s, [k]: v }));
-  const bodyType = computeBodyType(vals.bust ?? "", vals.waist ?? "", vals.hips ?? "");
+  const bodyType = computeBodyType(vals.bust ?? "", vals.waist ?? "", vals.hips ?? "", vals.high_hip ?? "");
   const first = (cardName.trim().split(" ")[0]) || "Card";
   const fname = `lovew-comcard-${first.toLowerCase()}`;
 

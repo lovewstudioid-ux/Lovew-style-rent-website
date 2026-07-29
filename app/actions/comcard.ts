@@ -45,7 +45,7 @@ export async function saveComcard(formData: FormData): Promise<ComcardResult> {
     const v = String(formData.get(f) ?? "").trim();
     row[f] = v || null;
   }
-  const bt = computeBodyType(row.bust ?? "", row.waist ?? "", row.hips ?? "");
+  const bt = computeBodyType(row.bust ?? "", row.waist ?? "", row.hips ?? "", row.high_hip ?? "");
   row.body_type = bt?.type ?? null;
 
   if (id) {
