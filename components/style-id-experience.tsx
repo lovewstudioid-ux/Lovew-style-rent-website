@@ -47,7 +47,7 @@ function Hub({ name, savedMeasurements, comcards }: {
   const first = name.split(" ")[0] || "there";
 
   if (mode === "measure") return <MeasurementFlow name={name} onBack={() => setMode("choose")} comcards={comcards} ownMeasurements={savedMeasurements} />;
-  if (mode === "model") return <ModelComcard name={name} onBack={() => setMode("choose")} ownMeasurements={savedMeasurements} />;
+  if (mode === "model") return <ModelComcard name={name} onBack={() => setMode("choose")} onFillMeasurements={() => setMode("measure")} ownMeasurements={savedMeasurements} comcards={comcards} />;
 
   return (
     <Shell>

@@ -2,196 +2,255 @@
 
 import { useRef, useState } from "react";
 import { downloadPng, downloadPdf, shareCard } from "@/lib/card-export";
+import type { Comcard } from "@/app/actions/comcard";
+
+/**
+ * Model comp card builder, matching the LOVEW [TALENT KIT] Canva templates:
+ *  - Template 1: main photo + name/stats sidebar + 5-photo collage below
+ *  - Template 2: 2×2 photo grid, name centred, stats row along the bottom
+ *
+ * Users only add photos — the stats come from their saved measurements
+ * (profile or a saved comcard), so nothing is re-typed.
+ */
 
 const inputCls = "w-full border border-ink/15 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink/35 outline-none transition-colors focus:border-wine";
 const labCls = "mb-1 block text-[0.66rem] uppercase tracking-[0.14em] text-ink/55";
 
-/* Stat fields shown on the card. Some prefill from saved measurements. */
-const STATS = [
-  { key: "height", label: "Height", ph: "170 cm", from: "height_cm" },
-  { key: "bust",   label: "Bust / chest", ph: "84 cm", from: "bust" },
-  { key: "waist",  label: "Waist", ph: "62 cm", from: "waist" },
-  { key: "hips",   label: "Hips", ph: "90 cm", from: "hips" },
-  { key: "shoe",   label: "Shoe", ph: "39 EU", from: "shoe_size" },
-  { key: "hair",   label: "Hair", ph: "Black" },
-  { key: "eyes",   label: "Eyes", ph: "Dark brown" },
-] as const;
+type Source = Record<string, string | null> | null | undefined;
 
-type PhotoSlot = { url: string };
+interface Stat { label: string; value: string }
+
+/** Build the template's stat list from saved measurements — nothing re-typed. */
+function statsFrom(src: Source): Stat[] {
+  const g = (k: string) => (src?.[k] ? String(src[k]).trim() : "");
+  const shoes = g("shoe_size")
+    ? g("feet_length_cm") ? `${g("shoe_size")} | ${g("feet_length_cm")} cm` : g("shoe_size")
+    : "";
+  return [
+    { label: "Height", value: g("height_cm") ? `${g("height_cm")} cm` : "" },
+    { label: "Bust", value: g("bust") ? `${g("bust")} cm` : "" },
+    { label: "Waist", value: g("waist") ? `${g("waist")} cm` : "" },
+    { label: "Hips", value: g("hips") ? `${g("hips")} cm` : "" },
+    { label: "Size", value: g("top_size") },
+    { label: "Shoes", value: shoes },
+  ].filter((s) => s.value);
+}
+
+/* ─── Photo slot (click to add / change; small ✕ to clear) ──────────────── */
+function Slot({
+  src, onPick, onClear, label, className = "",
+}: {
+  src: string | null;
+  onPick: () => void;
+  onClear: () => void;
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`relative overflow-hidden bg-[#f1eee9] ${className}`}>
+      {src ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" className="h-full w-full object-cover" />
+          <button type="button" onClick={onClear} aria-label="Remove photo" className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-[0.65rem] text-ink/60 hover:text-wine" data-html2canvas-ignore>✕</button>
+        </>
+      ) : (
+        <button type="button" onClick={onPick} className="flex h-full w-full flex-col items-center justify-center gap-1 text-ink/30 transition-colors hover:text-wine">
+          <span className="text-xl leading-none">＋</span>
+          {label && <span className="text-[0.55rem] uppercase tracking-[0.12em]">{label}</span>}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function ModelComcard({
   name,
   onBack,
+  onFillMeasurements,
   ownMeasurements,
+  comcards = [],
 }: {
   name: string;
   onBack: () => void;
+  onFillMeasurements?: () => void;
   ownMeasurements?: Record<string, string | null> | null;
+  comcards?: Comcard[];
 }) {
   const first = name.split(" ")[0] || "Model";
+  const [template, setTemplate] = useState<1 | 2>(1);
+  const [sourceId, setSourceId] = useState<string>("profile"); // "profile" | comcard id
   const [cardName, setCardName] = useState(name);
-  const [tagline, setTagline] = useState(""); // e.g. agency / location / @instagram
-  const [stats, setStats] = useState<Record<string, string>>(() => {
-    const out: Record<string, string> = {};
-    for (const s of STATS) {
-      const src = (s as { from?: string }).from;
-      const v = src && ownMeasurements ? ownMeasurements[src] : "";
-      if (v) out[s.key] = String(v);
-    }
-    return out;
-  });
-  const [main, setMain] = useState<string>("");
-  const [gallery, setGallery] = useState<PhotoSlot[]>([]);
+  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null, null]);
   const [exporting, setExporting] = useState("");
 
   const cardRef = useRef<HTMLDivElement>(null);
-  const mainRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
-  const fname = `lovew-model-comcard-${first.toLowerCase()}`;
+  const fileRef = useRef<HTMLInputElement>(null);
+  const activeSlot = useRef(0);
 
-  const setStat = (k: string, v: string) => setStats((s) => ({ ...s, [k]: v }));
+  const source: Source =
+    sourceId === "profile"
+      ? ownMeasurements
+      : (comcards.find((c) => c.id === sourceId) as unknown as Record<string, string | null>) ?? null;
+  const stats = statsFrom(source);
+  const hasMeasurements = stats.length > 0;
 
-  function pickMain(f: File | null) {
-    if (!f || !f.type.startsWith("image/")) return;
-    setMain(URL.createObjectURL(f));
-  }
-  function addGallery(files: FileList | null) {
-    if (!files) return;
-    const next: PhotoSlot[] = [];
-    for (const f of Array.from(files)) {
-      if (f.type.startsWith("image/") && gallery.length + next.length < 4) next.push({ url: URL.createObjectURL(f) });
+  function chooseSource(id: string) {
+    setSourceId(id);
+    if (id !== "profile") {
+      const c = comcards.find((x) => x.id === id);
+      if (c?.name) setCardName(c.name);
+    } else {
+      setCardName(name);
     }
-    setGallery((g) => [...g, ...next].slice(0, 4));
   }
-  function removeGallery(i: number) {
-    setGallery((g) => g.filter((_, j) => j !== i));
+
+  function pick(slot: number) {
+    activeSlot.current = slot;
+    fileRef.current?.click();
+  }
+  function onFile(f: File | null) {
+    if (!f || !f.type.startsWith("image/")) return;
+    const url = URL.createObjectURL(f);
+    setPhotos((p) => p.map((x, i) => (i === activeSlot.current ? url : x)));
+  }
+  function clear(slot: number) {
+    setPhotos((p) => p.map((x, i) => (i === slot ? null : x)));
   }
 
   async function exportRun(kind: string, fn: () => Promise<unknown>) {
     setExporting(kind);
     try { await fn(); } finally { setExporting(""); }
   }
+  const fname = `lovew-comcard-${(cardName.split(" ")[0] || first).toLowerCase()}-t${template}`;
 
-  const filledStats = STATS.filter((s) => stats[s.key]);
+  const slotProps = (i: number, label?: string, cls?: string) => ({
+    src: photos[i], onPick: () => pick(i), onClear: () => clear(i), label, className: cls,
+  });
 
   return (
     <div className="mx-auto w-full max-w-5xl">
       <button type="button" onClick={onBack} className="text-[0.66rem] uppercase tracking-[0.18em] text-ink/45 hover:text-wine">← Comcard</button>
       <h3 className="mt-3 font-display text-3xl font-normal text-ink">Model comcard</h3>
       <p className="mt-2 max-w-xl text-sm font-light leading-relaxed text-ink/55">
-        Build a modeling comp card — add your photos and stats, then download it as an image or PDF to send to agencies.
+        Just add your photos — your measurements fill in automatically. Pick a template, then download as image or PDF.
       </p>
 
-      <div className="mt-7 grid gap-8 md:grid-cols-[1fr_1.05fr]">
-        {/* ── Editor ─────────────────────────────────────────── */}
+      {/* Shared hidden file input */}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { onFile(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+
+      <div className="mt-7 grid gap-8 md:grid-cols-[0.9fr_1.1fr]">
+        {/* ── Controls ───────────────────────────────────────── */}
         <div className="space-y-5">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labCls}>Name on card</label>
-              <input className={inputCls} value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="Your name" />
-            </div>
-            <div>
-              <label className={labCls}>Agency / @handle <span className="text-ink/35">(optional)</span></label>
-              <input className={inputCls} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="@yourhandle · Jakarta" />
-            </div>
-          </div>
-
-          {/* Main photo */}
+          {/* Template choice */}
           <div>
-            <label className={labCls}>Main photo</label>
-            <input ref={mainRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickMain(e.target.files?.[0] ?? null)} />
-            <button type="button" onClick={() => mainRef.current?.click()} className="flex w-full items-center gap-4 border border-dashed border-ink/25 bg-[#faf8f5] px-4 py-4 text-left transition-colors hover:border-wine">
-              {main ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={main} alt="" className="h-16 w-14 flex-shrink-0 rounded-sm object-cover" />
-              ) : (
-                <span className="flex h-16 w-14 flex-shrink-0 items-center justify-center rounded-sm bg-ink/5 text-xl text-ink/30">＋</span>
-              )}
-              <span className="text-sm text-ink/60">{main ? "Change main photo" : "Upload your main headshot / full body"}<span className="mt-0.5 block text-[0.7rem] text-ink/40">JPG/PNG</span></span>
-            </button>
-          </div>
-
-          {/* Gallery photos */}
-          <div>
-            <label className={labCls}>More photos <span className="text-ink/35">(up to 4)</span></label>
-            <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => addGallery(e.target.files)} />
-            <div className="grid grid-cols-4 gap-2">
-              {gallery.map((g, i) => (
-                <div key={i} className="relative aspect-[3/4] overflow-hidden rounded-sm border border-ink/10">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={g.url} alt="" className="h-full w-full object-cover" />
-                  <button type="button" onClick={() => removeGallery(i)} aria-label="Remove" className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-[0.7rem] text-ink/60 hover:text-wine">✕</button>
-                </div>
-              ))}
-              {gallery.length < 4 && (
-                <button type="button" onClick={() => galleryRef.current?.click()} className="flex aspect-[3/4] items-center justify-center rounded-sm border border-dashed border-ink/25 bg-[#faf8f5] text-xl text-ink/30 hover:border-wine hover:text-wine">＋</button>
-              )}
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div>
-            <label className={labCls}>Stats</label>
+            <label className={labCls}>Template</label>
             <div className="grid grid-cols-2 gap-2">
-              {STATS.map((s) => (
-                <input key={s.key} className={inputCls} value={stats[s.key] ?? ""} onChange={(e) => setStat(s.key, e.target.value)} placeholder={`${s.label} — ${s.ph}`} />
-              ))}
+              <button type="button" onClick={() => setTemplate(1)} className={`border p-3 text-left transition-colors ${template === 1 ? "border-wine bg-[#fdf6f7]" : "border-ink/15 hover:border-wine"}`}>
+                <span className="block text-[0.7rem] font-medium uppercase tracking-[0.14em] text-ink">Template 1</span>
+                <span className="mt-0.5 block text-[0.68rem] font-light text-ink/50">Main photo + collage</span>
+              </button>
+              <button type="button" onClick={() => setTemplate(2)} className={`border p-3 text-left transition-colors ${template === 2 ? "border-wine bg-[#fdf6f7]" : "border-ink/15 hover:border-wine"}`}>
+                <span className="block text-[0.7rem] font-medium uppercase tracking-[0.14em] text-ink">Template 2</span>
+                <span className="mt-0.5 block text-[0.68rem] font-light text-ink/50">Photo grid</span>
+              </button>
             </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className={labCls}>Name on card</label>
+            <input className={inputCls} value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="Name" />
+          </div>
+
+          {/* Measurement source */}
+          <div>
+            <label className={labCls}>Measurements</label>
+            {comcards.length > 0 ? (
+              <select className={inputCls} value={sourceId} onChange={(e) => chooseSource(e.target.value)}>
+                <option value="profile">My saved measurements</option>
+                {comcards.map((c) => <option key={c.id} value={c.id}>Comcard · {c.name}</option>)}
+              </select>
+            ) : (
+              <p className="border border-ink/12 bg-[#faf8f5] px-3 py-2.5 text-[0.78rem] text-ink/60">Pulled automatically from your saved measurements.</p>
+            )}
+            {hasMeasurements ? (
+              <p className="mt-1.5 text-[0.68rem] text-ink/45">
+                Auto-filled: {stats.map((s) => s.label).join(" · ")} — no re-typing needed.
+              </p>
+            ) : (
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <p className="text-[0.68rem] text-wine">No measurements saved yet.</p>
+                {onFillMeasurements && (
+                  <button type="button" onClick={onFillMeasurements} className="text-[0.68rem] uppercase tracking-[0.12em] text-wine underline underline-offset-2 hover:text-ink">Fill measurements first →</button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <p className="text-[0.72rem] font-light leading-relaxed text-ink/45">
+            Tap any photo slot on the card to add that photo. Template 1 uses six photos, Template 2 uses four.
+          </p>
+
+          {/* Export */}
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => exportRun("png", () => downloadPng(cardRef.current!, fname))} disabled={!!exporting} className="inline-flex items-center justify-center bg-ink px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-white transition-colors hover:bg-wine disabled:opacity-60">{exporting === "png" ? "…" : "Image ↓"}</button>
+            <button type="button" onClick={() => exportRun("pdf", () => downloadPdf(cardRef.current!, fname))} disabled={!!exporting} className="inline-flex items-center justify-center border border-ink/20 px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine disabled:opacity-60">{exporting === "pdf" ? "…" : "PDF"}</button>
+            <button type="button" onClick={() => exportRun("share", () => shareCard(cardRef.current!, `${cardName || first} — comp card`, "Comp card made at LOVEW — lovew.studio/discover"))} disabled={!!exporting} className="inline-flex items-center justify-center border border-ink/20 px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine disabled:opacity-60">{exporting === "share" ? "…" : "Share"}</button>
           </div>
         </div>
 
-        {/* ── Live comp card (exportable) ────────────────────── */}
-        <div>
-          <div ref={cardRef} className="border border-ink/12 bg-white p-6">
-            <div className="flex items-baseline justify-between">
-              <h2 className="font-display text-3xl font-normal text-ink">{cardName || first}</h2>
-              <p className="text-[0.6rem] font-medium uppercase tracking-[0.3em] text-wine">LOVEW</p>
-            </div>
-            {tagline && <p className="mt-0.5 text-[0.72rem] uppercase tracking-[0.14em] text-ink/45">{tagline}</p>}
-
-            {/* Main photo */}
-            <div className="mt-4 aspect-[3/4] overflow-hidden bg-[#f1eee9]">
-              {main ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={main} alt={cardName} crossOrigin="anonymous" className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[0.7rem] uppercase tracking-[0.14em] text-ink/30">Main photo</div>
-              )}
-            </div>
-
-            {/* Gallery */}
-            {gallery.length > 0 && (
-              <div className="mt-2 grid grid-cols-4 gap-1.5">
-                {gallery.map((g, i) => (
-                  <div key={i} className="aspect-[3/4] overflow-hidden bg-[#f1eee9]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={g.url} alt="" crossOrigin="anonymous" className="h-full w-full object-cover" />
+        {/* ── Live card (exportable, 3:4) ────────────────────── */}
+        <div className="mx-auto w-full max-w-[430px]">
+          <div ref={cardRef} className="aspect-[3/4] w-full border border-ink/12 bg-white">
+            {template === 1 ? (
+              /* Template 1 — main photo, name/stats sidebar, 5-photo collage */
+              <div className="flex h-full flex-col gap-[3%] p-[5%]">
+                <div className="grid min-h-0 flex-[1.05] grid-cols-[1.15fr_1fr] gap-[4%]">
+                  <Slot {...slotProps(0, "Main photo", "h-full")} />
+                  <div className="flex min-w-0 flex-col pt-[2%]">
+                    <p className="text-[0.55rem] uppercase tracking-[0.3em] text-ink/55">Lovew Studio</p>
+                    <p className="mt-[6%] break-words font-display text-[1.55rem] font-medium uppercase leading-[1.05] tracking-[0.02em] text-ink">{cardName || "Name"}</p>
+                    <div className="mt-[10%] space-y-[6%]">
+                      {stats.map((s) => (
+                        <p key={s.label} className="text-[0.62rem] tracking-[0.06em] text-ink"><span className="uppercase text-ink/80">{s.label}</span> <span className="text-ink/70">{s.value}</span></p>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                </div>
+                <div className="grid min-h-0 flex-1 grid-cols-[1.15fr_1fr_1fr] grid-rows-2 gap-[3%]">
+                  <Slot {...slotProps(1, "Photo", "row-span-2 h-full")} />
+                  <Slot {...slotProps(2, "Photo", "h-full")} />
+                  <Slot {...slotProps(3, "Photo", "h-full")} />
+                  <Slot {...slotProps(4, "Photo", "h-full")} />
+                  <Slot {...slotProps(5, "Photo", "h-full")} />
+                </div>
+              </div>
+            ) : (
+              /* Template 2 — 2×2 grid, centred name, stats row */
+              <div className="flex h-full flex-col p-[5%]">
+                <p className="text-center text-[0.55rem] uppercase tracking-[0.3em] text-ink/55">Lovew Studio</p>
+                <div className="mt-[3%] grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-[3%]">
+                  <Slot {...slotProps(0, "Photo", "h-full")} />
+                  <Slot {...slotProps(1, "Photo", "h-full")} />
+                  <Slot {...slotProps(2, "Photo", "h-full")} />
+                  <Slot {...slotProps(3, "Photo", "h-full")} />
+                </div>
+                <p className="mt-[4%] text-center font-display text-[1.05rem] font-medium uppercase tracking-[0.08em] text-ink">{cardName || "Name"}</p>
+                {stats.length > 0 && (
+                  <div className="mt-[3%] flex justify-between gap-1">
+                    {stats.map((s) => (
+                      <div key={s.label} className="min-w-0 text-center">
+                        <p className="text-[0.5rem] font-medium uppercase tracking-[0.08em] text-ink">{s.label}</p>
+                        <p className="mt-0.5 text-[0.52rem] text-ink/60">{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-
-            {/* Stats */}
-            {filledStats.length > 0 && (
-              <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 border-t border-ink/10 pt-4">
-                {filledStats.map((s) => (
-                  <div key={s.key} className="flex justify-between border-b border-ink/5 pb-1">
-                    <dt className="text-[0.7rem] uppercase tracking-[0.1em] text-ink/45">{s.label}</dt>
-                    <dd className="text-[0.75rem] text-ink">{stats[s.key]}</dd>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <p className="mt-4 border-t border-ink/10 pt-3 text-center text-[0.58rem] uppercase tracking-[0.22em] text-ink/40">lovew.studio · comp card</p>
           </div>
-
-          {/* Export */}
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => exportRun("png", () => downloadPng(cardRef.current!, fname))} disabled={!!exporting} className="inline-flex items-center justify-center bg-ink px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-white transition-colors hover:bg-wine disabled:opacity-60">{exporting === "png" ? "…" : "Image ↓"}</button>
-            <button type="button" onClick={() => exportRun("pdf", () => downloadPdf(cardRef.current!, fname))} disabled={!!exporting} className="inline-flex items-center justify-center border border-ink/20 px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine disabled:opacity-60">{exporting === "pdf" ? "…" : "PDF"}</button>
-            <button type="button" onClick={() => exportRun("share", () => shareCard(cardRef.current!, `${first}'s comp card`, "My model comp card from LOVEW — lovew.studio/discover"))} disabled={!!exporting} className="inline-flex items-center justify-center border border-ink/20 px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-ink transition-colors hover:border-wine disabled:opacity-60">{exporting === "share" ? "…" : "Share"}</button>
-          </div>
+          <p className="mt-2 text-center text-[0.66rem] text-ink/40">Tap a slot to add its photo · switch templates any time, photos stay</p>
         </div>
       </div>
     </div>
