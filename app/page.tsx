@@ -32,19 +32,18 @@ export default function HomePage() {
               <Image src={img(PHOTO.beauty1, 1000)} alt="Style ID — free style analysis" fill sizes="(min-width:768px) 45vw, 90vw" className="object-cover" />
             </div>
             <div>
-              <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">Style ID</p>
+              <p className="text-[0.7rem] font-medium uppercase tracking-[0.3em] text-wine">Comcard</p>
               <h2 className="mt-5 font-display text-[2.4rem] font-normal leading-[1.08] text-ink md:text-[3rem]">
-                Discover your colours &amp; fit — <span className="italic text-wine">free.</span>
+                Your body, on one card — <span className="italic text-wine">free.</span>
               </h2>
               <p className="mt-6 max-w-md text-[0.95rem] font-light leading-relaxed text-ink/60">
-                Upload one photo and get a personalised style read in two minutes —
-                your palette, your season, hair and accessory notes, and the pieces
-                that love you back. Save your sizing once and shop smarter across
-                LOVEW.
+                Enter your measurements to read your body type in seconds, or build
+                a full model comp card with your photos. Download it as an image or
+                PDF — ready for agencies, stylists, and every fitting.
               </p>
               <div className="mt-9">
                 <Link href="/discover" className="inline-flex items-center gap-3 bg-ink px-8 py-3.5 text-xs uppercase tracking-[0.24em] text-white transition-colors hover:bg-wine">
-                  Start your Style ID →
+                  Build your comcard →
                 </Link>
               </div>
             </div>
@@ -82,7 +81,7 @@ export default function HomePage() {
             <h2 className="mt-4 max-w-xl font-display text-3xl font-normal text-ink md:text-4xl">Make it yours — free to use.</h2>
             <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                { name: "Style ID", tagline: "Your colours, fit & body type from one selfie", href: "/discover" },
+                { name: "Comcard", tagline: "Your body type + a model comp card, free", href: "/discover" },
                 { name: "Wardrobe", tagline: "Build a gallery of your closet", href: "/wardrobe" },
                 { name: "Gift Registry", tagline: "A wishlist to share for any occasion", href: "/registry" },
                 { name: "Event Seating", tagline: "Digital seating chart with QR finder", href: "/event" },

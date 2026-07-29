@@ -29,7 +29,7 @@ export function Label({ children, className = "" }: { children: React.ReactNode;
 
 /* ─── Free tools list (also used in mobile nav) ─────────────────────────── */
 const FREE_TOOLS = [
-  { name: "Style ID", href: "/discover" },
+  { name: "Comcard", href: "/discover" },
   { name: "Wardrobe", href: "/wardrobe" },
   { name: "Gift Registry", href: "/registry" },
   { name: "Event Seating", href: "/event" },
@@ -103,7 +103,7 @@ function SetupRow({ done, label, href, onGo }: { done: boolean; label: string; h
 
 function AccountMenu({ account }: { account: AccountNav }) {
   const [open, setOpen] = useState(false);
-  const incomplete = !account.hasStyleId || !account.hasMeasurements;
+  const incomplete = !account.hasMeasurements;
   const first = (account.name || "").split(" ")[0] || "Account";
 
   return (
@@ -131,10 +131,9 @@ function AccountMenu({ account }: { account: AccountNav }) {
           {/* Setup checklist */}
           <div className="border-b border-ink/10 py-1">
             <p className="px-4 pb-1 pt-2 text-[0.6rem] font-medium uppercase tracking-[0.2em] text-ink/35">
-              Your Style ID
+              Your comcard
             </p>
-            <SetupRow done={account.hasStyleId} label="Colour & style analysis" href="/discover" onGo={() => setOpen(false)} />
-            <SetupRow done={account.hasMeasurements} label="Body measurements" href="/discover" onGo={() => setOpen(false)} />
+            <SetupRow done={account.hasMeasurements} label="Body measurements & type" href="/discover" onGo={() => setOpen(false)} />
           </div>
 
           {/* Tool links */}
@@ -276,20 +275,10 @@ export function StudioHeader({ account }: { account?: AccountNav | null }) {
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-2 text-[0.85rem] text-ink/75 hover:text-wine"
                   >
-                    <span className={account.hasStyleId ? "text-eucalyptus" : "text-wine"}>
-                      {account.hasStyleId ? "✓" : "!"}
-                    </span>
-                    Colour &amp; style analysis
-                  </Link>
-                  <Link
-                    href="/discover"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-2 text-[0.85rem] text-ink/75 hover:text-wine"
-                  >
                     <span className={account.hasMeasurements ? "text-eucalyptus" : "text-wine"}>
                       {account.hasMeasurements ? "✓" : "!"}
                     </span>
-                    Body measurements
+                    Body measurements &amp; comcard
                   </Link>
                 </div>
                 <form action={signOut} className="mt-4">
